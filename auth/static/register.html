@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Регистрация - Plant Analyzer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 400px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover { background: #218838; }
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .error { background: #f8d7da; color: #721c24; }
+        .success { background: #d4edda; color: #155724; }
+        .nav { text-align: center; margin-top: 20px; }
+        .nav a { color: #007bff; text-decoration: none; }
+        .password-requirements {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🌱 Регистрация</h1>
+
+    <form id="registerForm">
+        <div class="form-group">
+            <label for="name">Имя:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+
+        <div class="form-group">
+            <label for="last_name">Фамилия:</label>
+            <input type="text" id="last_name" name="last_name" required>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Пароль:</label>
+            <input type="password" id="password" name="password" required minlength="8">
+            <div class="password-requirements">
+                Минимум 8 символов, должен содержать строчные, заглавные буквы и цифры
+            </div>
+        </div>
+
+        <button type="submit">Зарегистрироваться</button>
+    </form>
+
+    <div id="message"></div>
+
+    <div class="nav">
+        <a href="/">На главную</a> |
+        <a href="/login.html">Уже есть аккаунт? Войти</a>
+    </div>
+</div>
+
+<script>
+    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const name = document.getElementById('name').value;
+        const last_name = document.getElementById('last_name').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const messageDiv = document.getElementById('message');
+
+        try {
+            const response = await fetch('/api/v1/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ name, last_name, email, password })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Автоматически сохраняем токен при успешной регистрации
+                sessionStorage.setItem('accessToken', data.access_token);
+
+                messageDiv.className = 'message success';
+                messageDiv.textContent = 'Успешная регистрация! Добро пожаловать!';
+
+                // Перенаправляем на главную
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+            } else {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = data.error || 'Ошибка регистрации';
+            }
+        } catch (error) {
+            messageDiv.className = 'message error';
+            messageDiv.textContent = 'Ошибка соединения с сервером';
+        }
+    });
+</script>
+</body>
+</html>

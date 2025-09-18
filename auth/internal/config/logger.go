@@ -16,10 +16,11 @@ func InitLogger() {
 			Level: slog.LevelInfo,
 		})
 	} else {
-		// Разработка: текстовый формат с исходными файлами
-		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level:     slog.LevelDebug,
-			AddSource: true,
+
+		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level:       slog.LevelInfo,
+			ReplaceAttr: replaceTimeAttr,
+			AddSource:   true,
 		})
 	}
 
@@ -27,4 +28,11 @@ func InitLogger() {
 	slog.SetDefault(Logger)
 
 	slog.Info("Logger initialized successfully")
+}
+
+func replaceTimeAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.TimeKey {
+		return slog.String("time", a.Value.Time().Local().Format("2006-01-02 15:04:05"))
+	}
+	return a
 }

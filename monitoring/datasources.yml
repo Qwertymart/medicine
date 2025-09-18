@@ -1,0 +1,52 @@
+apiVersion: 1
+
+# Удаление старых источников данных при необходимости
+deleteDatasources:
+  - name: Old Prometheus
+    orgId: 1
+
+datasources:
+  # Loki для логов
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: false
+    version: 1
+    editable: true
+    jsonData:
+      timeout: 60
+      maxLines: 1000
+      derivedFields:
+        # Связь с трейсами через trace_id
+        - datasourceUid: jaeger_uid
+          matcherRegex: "trace_id=(\\w+)"
+          name: TraceID
+          url: "${__value.raw}"
+          urlDisplayLabel: "View Trace"
+
+  # Prometheus для метрик
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    version: 1
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: "30s"
+      # Кастомные запросы для автокомплита
+      customQueryParameters: ""
+      prometheusType: Prometheus
+      prometheusVersion: 2.40.0
+
+  # Jaeger для трейсинга (опционально)
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    uid: jaeger_uid
+    isDefault: false
+    version: 1
+    editable: true

@@ -4,10 +4,16 @@ package main
 import (
 	"auth/internal/config"
 	"auth/internal/database"
+	"auth/internal/handlers"
+	"auth/internal/middleware"
 	_ "auth/internal/models"
+	"auth/internal/repository"
+	"auth/internal/service"
 	"context"
 	"errors"
 	_ "fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,6 +22,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
 
@@ -25,6 +32,11 @@ var (
 )
 
 func main() {
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: No .env file found, using system environment variables")
+	}
 	config.InitLogger()
 	slog.Info("Starting application", "version", "1.0.0")
 
@@ -77,4 +89,77 @@ func waitForShutdown(server *http.Server) {
 	}
 
 	slog.Info("Server gracefully stopped")
+}
+
+func setupRouter() *gin.Engine {
+	router := gin.New()
+
+	// Middleware
+	router.Use(loggingMiddleware())
+	router.Use(gin.Recovery())
+
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Статические файлы
+	router.Static("/static", "./static")
+	router.StaticFile("/", "./static/index.html")
+	router.StaticFile("/login.html", "./static/login.html")
+	router.StaticFile("/register.html", "./static/register.html")
+	router.StaticFile("/profile.html", "./static/profile.html")
+
+	// Инициализация сервисов
+	userRepo := repository.NewUserRepository(db)
+	jwtService := service.NewJWTService()
+	userService := service.NewUserService(userRepo, jwtService)
+	jwtMiddleware := middleware.NewJWTMiddleware(jwtService, userService)
+	authHandlers := handlers.NewAuthHandlers(userService, jwtService)
+
+	// Auth endpoints
+	auth := router.Group("/api/v1/auth")
+	{
+		auth.POST("/register", authHandlers.Register)
+		auth.POST("/login", authHandlers.Login)
+		auth.POST("/refresh", authHandlers.RefreshToken)
+		auth.POST("/logout", authHandlers.Logout)
+	}
+
+	// Защищенные endpoints
+	protected := router.Group("/api/v1")
+	protected.Use(jwtMiddleware.RequireAuth())
+	{
+		protected.GET("/auth/me", authHandlers.GetProfile)
+	}
+
+	return router
+}
+
+func loggingMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		method := c.Request.Method
+		clientIP := c.ClientIP()
+
+		c.Next()
+
+		latency := time.Since(start)
+		statusCode := c.Writer.Status()
+
+		// Определяем уровень лога по статус коду
+		logLevel := slog.LevelInfo
+		if statusCode >= 400 && statusCode < 500 {
+			logLevel = slog.LevelWarn
+		} else if statusCode >= 500 {
+			logLevel = slog.LevelError
+		}
+
+		slog.Log(context.Background(), logLevel, "HTTP request completed",
+			"method", method,
+			"path", path,
+			"status", statusCode,
+			"latency_ms", latency.Milliseconds(),
+			"ip", clientIP,
+			"user_agent", c.Request.UserAgent(),
+		)
+	}
 }
