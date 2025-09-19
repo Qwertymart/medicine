@@ -13,6 +13,13 @@ const ResultCard = dynamic(() => import("@/components/card/ResultCard"));
 const UnauthorizedBanner = dynamic(
   () => import("@/components/UnauthorizedBanner/u_banner")
 );
+const CameraComponent = dynamic(
+  () => import("@/components/Camera/CameraComponent"),
+  {
+    ssr: false,
+    loading: () => <p>Загрузка камеры...</p>,
+  }
+);
 
 const loader = ["https://metallsantehgroup.ru/img/load.gif"];
 
@@ -22,11 +29,13 @@ export default function UploadCarousel() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [currentIndex, setCurrentIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<string[]>([]);
   const [showResult, setShowResult] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [showCamera, setShowCamera] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return () => {
@@ -34,23 +43,23 @@ export default function UploadCarousel() {
     };
   }, [previewUrls]);
 
-    useEffect(() => {
-      const checkAuthStatus = async () => {
-        try {
-          const response = await fetch("/api/auth/check");
-          if (!response.ok) {
-            setUnauthorized(true);
-            return;
-          }
-          setUnauthorized(false);
-        } catch (error) {
-          console.error("Auth check error:", error);
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const response = await fetch("/api/auth/check");
+        if (!response.ok) {
           setUnauthorized(true);
+          return;
         }
-      };
+        setUnauthorized(false);
+      } catch (error) {
+        console.error("Auth check error:", error);
+        setUnauthorized(true);
+      }
+    };
 
-      checkAuthStatus();
-    }, []);
+    checkAuthStatus();
+  }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleFileChange(event: any): void {
@@ -79,6 +88,26 @@ export default function UploadCarousel() {
       setCurrentIndex(0);
     }
   }
+
+  const handlePhotoTaken = (photoData: string) => {
+    const byteString = atob(photoData.split(",")[1]);
+    const mimeString = photoData.split(",")[0].split(":")[1].split(";")[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+
+    const blob = new Blob([ab], { type: mimeString });
+    const file = new File([blob], `camera-photo-${Date.now()}.png`, {
+      type: mimeString,
+    });
+
+    setSelectedImgs((prev) => [...prev, file]);
+
+    setPreviewUrls((prev) => [...prev, photoData]);
+  };
 
   function handleSubmit(e: FormEvent<HTMLFormElement>): void {
     e.preventDefault();
@@ -112,8 +141,9 @@ export default function UploadCarousel() {
         return;
       })
       .finally(() => {
-        setTimeout(() => {}, 5000);
-        setIsLoading(false);
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 5000);
       });
   }
 
@@ -137,78 +167,106 @@ export default function UploadCarousel() {
         visible={unauthorized}
         onClose={() => setUnauthorized(false)}
       />
-      <motion.div
-        ref={containerRef}
-        className={styles.mainContent}
-        animate={{
-          marginRight: showResult ? "5vw" : "0",
-          transition: { duration: 0.3 },
-        }}
-      >
-        <Card>
-          <div className={styles.carouselContainer}>
-            <h2 className={styles.headText}>Форма для загрузки фотографий</h2>
 
-            {previewUrls.length > 0 && <Carousel previewUrls={previewUrls} />}
+      <div className={styles.mini_header}>
+        <div className={styles.modeSelector}>
+          <Button
+            size="medium"
+            variant={!showCamera ? "green" : "green"}
+            onClick={() => setShowCamera(false)}
+          >
+            Загрузка файлов
+          </Button>
+          <Button
+            size="medium"
+            variant={showCamera ? "green" : "green"}
+            onClick={() => setShowCamera(true)}
+          >
+            Камера
+          </Button>
+        </div>
 
-            <form onSubmit={handleSubmit} className={styles.uploadForm}>
-              {previewUrls.length === 0 && (
-                <div
-                  className={styles.dropzone}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.classList.add(styles.dragover);
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.classList.remove(styles.dragover);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.classList.remove(styles.dragover);
-                    if (e.dataTransfer.files) {
-                      handleFileChange(e);
-                    }
-                  }}
-                  onClick={() => inputRef.current?.click()}
-                >
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleFileChange}
-                    ref={inputRef}
-                    style={{ display: "none" }}
-                  />
-                  <div className={styles.dropzoneContent}>
-                    <p>Нажмите чтобы загрузить или перетащите фотографии</p>
-                    <small>Поддерживаемые форматы: JPEG, PNG, WEBP</small>
+        {showCamera ? (
+          <CameraComponent onPhotoTaken={handlePhotoTaken} />
+        ) : (
+          <motion.div
+            ref={containerRef}
+            className={styles.mainContent}
+            animate={{
+              marginRight: showResult ? "5vw" : "0",
+              transition: { duration: 0.3 },
+            }}
+          >
+            <Card>
+              <div className={styles.carouselContainer}>
+                <h2 className={styles.headText}>
+                  Форма для загрузки фотографий
+                </h2>
+
+                {previewUrls.length > 0 && (
+                  <Carousel previewUrls={previewUrls} />
+                )}
+
+                <form onSubmit={handleSubmit} className={styles.uploadForm}>
+                  {previewUrls.length === 0 && (
+                    <div
+                      className={styles.dropzone}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add(styles.dragover);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove(styles.dragover);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove(styles.dragover);
+                        if (e.dataTransfer.files) {
+                          handleFileChange(e);
+                        }
+                      }}
+                      onClick={() => inputRef.current?.click()}
+                    >
+                      <input
+                        type="file"
+                        multiple
+                        onChange={handleFileChange}
+                        ref={inputRef}
+                        style={{ display: "none" }}
+                      />
+                      <div className={styles.dropzoneContent}>
+                        <p>Нажмите чтобы загрузить или перетащите фотографии</p>
+                        <small>Поддерживаемые форматы: JPEG, PNG, WEBP</small>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={styles.buttonsWrapper}>
+                    <Button
+                      size="large"
+                      type="button"
+                      variant="green"
+                      onClick={handleClear}
+                      disabled={previewUrls.length === 0}
+                    >
+                      Сбросить
+                    </Button>
+                    <Button
+                      size="large"
+                      type="submit"
+                      variant="mint"
+                      disabled={previewUrls.length === 0}
+                    >
+                      Загрузить ({previewUrls.length})
+                    </Button>
                   </div>
-                </div>
-              )}
-
-              <div className={styles.buttonsWrapper}>
-                <Button
-                  size="large"
-                  type="button"
-                  variant="green"
-                  onClick={handleClear}
-                  disabled={previewUrls.length === 0}
-                >
-                  Сбросить
-                </Button>
-                <Button
-                  size="large"
-                  type="submit"
-                  variant="mint"
-                  disabled={previewUrls.length === 0}
-                >
-                  Загрузить ({previewUrls.length})
-                </Button>
+                </form>
               </div>
-            </form>
-          </div>
-        </Card>
-      </motion.div>
+            </Card>
+          </motion.div>
+        )}
+      </div>
 
       <AnimatePresence>
         {showResult && (
