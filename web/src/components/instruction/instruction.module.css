@@ -1,0 +1,303 @@
+/*@import url('../../styles/fonts.css'); !* Импортируем шрифты *!*/
+
+/*!* Основной контейнер *!*/
+/*.instructionWrapper {*/
+/*    padding: 160px 110px;*/
+/*    display: flex; !* Используем Flexbox *!*/
+/*    justify-content: space-between; !* Равномерное распределение пространства *!*/
+/*    gap: 40px; !* Отступ между блоками *!*/
+/*    background-image: url("../../../public/images/back3.png");*/
+/*    background-size: 1340px 508px;*/
+/*    background-repeat: no-repeat;*/
+/*    background-position: top left;*/
+/*    background-color: #ffffff;*/
+/*    min-height: 500px; !* Минимальная высота секции *!*/
+/*}*/
+
+/*!* Левый блок *!*/
+/*.instructionWrapperLeft {*/
+/*    flex: 1; !* Занимает доступное пространство *!*/
+/*    max-width: 340px; !* Ограничиваем ширину *!*/
+/*}*/
+
+/*!* Центральный блок *!*/
+/*.instructionWrapperCentral {*/
+/*    flex: 2; !* Занимает больше пространства, чем левый и правый *!*/
+/*    max-width: 600px; !* Ограничиваем ширину *!*/
+/*}*/
+
+/*!* Правый блок *!*/
+/*.instructionWrapperRight {*/
+/*    flex: 1; !* Занимает доступное пространство *!*/
+/*    max-width: 390px; !* Ограничиваем ширину *!*/
+/*}*/
+
+/*!* Общие стили для ссылок *!*/
+/*.instructionLink {*/
+/*    font-family: 'Montserrat', sans-serif;*/
+
+/*    width: 174px;*/
+/*    padding: 16px;*/
+/*    background-color: #07a97e;*/
+/*    border-radius: 30px;*/
+/*    color: #000000;*/
+/*    text-transform: uppercase;*/
+/*    text-decoration: none;*/
+/*    font-size: 12px;*/
+/*    line-height: 16px;*/
+/*    display: inline-block;*/
+/*}*/
+
+/*.instructionLinkPosition {*/
+/*    margin-top: 30px;*/
+/*}*/
+
+/*!* Заголовок *!*/
+/*.instructionHeader {*/
+/*    font-family: 'Montserrat', sans-serif;*/
+/*    font-size: 26px;*/
+/*    line-height: 28px;*/
+/*    color: #000000;*/
+/*}*/
+
+/*!* Текст *!*/
+/*.instructionText {*/
+/*    font-family: 'Montserrat', sans-serif;*/
+/*    white-space: pre-line;*/
+/*    font-size: 16px;*/
+/*    line-height: 20px;*/
+/*    color: #a4a4a4;*/
+/*}*/
+
+/*!* Список шагов *!*/
+/*.instructionWrapperSteps {*/
+/*    padding: 0;*/
+/*    margin: 0;*/
+/*    list-style: none;*/
+/*    display: flex;*/
+/*    flex-direction: column;*/
+/*    gap: 15px;*/
+/*}*/
+
+/*.instructionWrapperStepsItem {*/
+/*    display: grid;*/
+/*    grid-template-columns: 62px 1fr;*/
+/*    gap: 20px;*/
+/*    align-items: center;*/
+/*}*/
+
+/*.instructionWrapperStepsNumber {*/
+/*    font-family: 'Montserrat3', sans-serif;*/
+
+/*    font-size: 46px;*/
+/*    line-height: 46px;*/
+/*    font-weight: 500;*/
+/*    color: #cecece;*/
+/*    margin: 0;*/
+/*}*/
+
+/*!* Список цветов *!*/
+/*.instructionWrapperColors {*/
+/*    margin: 0;*/
+/*    padding: 0;*/
+/*    list-style: none;*/
+/*}*/
+
+/*.instructionWrapperColorsItem {*/
+/*    position: relative;*/
+/*}*/
+
+/*.instructionWrapperColorsName {*/
+/*    font-size: 16px;*/
+/*    line-height: 20px;*/
+/*    font-weight: 600;*/
+/*    color: #a4a4a4;*/
+/*    padding-left: 47px;*/
+/*}*/
+
+/*.instructionWrapperColorsName::before {*/
+/*    content: "";*/
+/*    width: 40px;*/
+/*    height: 3px;*/
+/*    background-color: #000000;*/
+/*    position: absolute;*/
+/*    left: 0;*/
+/*    top: 50%;*/
+/*    transform: translateY(-50%);*/
+/*}*/
+
+/*.instructionWrapperColorsItemRed .instructionWrapperColorsName::before {*/
+/*    background-color: #911820;*/
+/*}*/
+
+/*.instructionWrapperColorsItemPurple .instructionWrapperColorsName::before {*/
+/*    background-color: #fecfff;*/
+/*}*/
+
+/*.instructionWrapperColorsItemOrange .instructionWrapperColorsName::before {*/
+/*    background-color: #a77730;*/
+/*}*/
+
+/*!* Картинка *!*/
+/*.instructionWrapperImage {*/
+/*    border: 4px solid #1d213b;*/
+/*    box-shadow: 10px 25px #6b9ca0;*/
+/*}*/
+
+@import url('../../styles/fonts.css'); /* Импортируем шрифты */
+
+/* Основной контейнер */
+.instructionWrapper {
+    padding: 14.81vh 5.73vw; /* 160px / 1080px * 100, 110px / 1920px * 100 */
+    display: flex; /* Используем Flexbox */
+    justify-content: space-between; /* Равномерное распределение пространства */
+    gap: 2.08vw; /* 40px / 1920px * 100 */
+    background-image: url("../../../public/images/back3.png");
+    background-size: 69.79vw 47.04vh; /* 1340px / 1920px * 100, 508px / 1080px * 100 */
+    background-repeat: no-repeat;
+    background-position: top left;
+    background-color: #ffffff;
+    min-height: 46.3vh; /* 500px / 1080px * 100 */
+}
+
+/* Левый блок */
+.instructionWrapperLeft {
+    flex: 1; /* Занимает доступное пространство */
+    max-width: 17.71vw; /* 340px / 1920px * 100 */
+}
+
+/* Центральный блок */
+.instructionWrapperCentral {
+    flex: 2; /* Занимает больше пространства, чем левый и правый */
+    max-width: 31.25vw; /* 600px / 1920px * 100 */
+}
+
+/* Правый блок */
+.instructionWrapperRight {
+    flex: 1; /* Занимает доступное пространство */
+    max-width: 20.31vw; /* 390px / 1920px * 100 */
+}
+
+/* Общие стили для ссылок */
+.instructionLink {
+    font-family: 'Montserrat', sans-serif;
+    width: 9.06vw; /* 174px / 1920px * 100 */
+    padding: 0.83vw; /* 16px / 1920px * 100 */
+    background-color: #07a97e;
+    border-radius: 1.56vw; /* 30px / 1920px * 100 */
+    color: #000000;
+    text-transform: uppercase;
+    text-decoration: none;
+    font-size: 0.625vw; /* 12px / 1920px * 100 */
+    line-height: 0.83vw; /* 16px / 1920px * 100 */
+    display: inline-block;
+}
+
+.instructionLinkPosition {
+    margin-top: 2.78vh; /* 30px / 1080px * 100 */
+}
+
+/* Заголовок */
+.instructionHeader {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 1.35vw; /* 26px / 1920px * 100 */
+    line-height: 1.46vw; /* 28px / 1920px * 100 */
+    color: #000000;
+}
+
+/* Текст */
+.instructionText {
+    font-family: 'Montserrat', sans-serif;
+    white-space: pre-line;
+    font-size: 0.83vw; /* 16px / 1920px * 100 */
+    line-height: 1.04vw; /* 20px / 1920px * 100 */
+    color: #a4a4a4;
+}
+
+/* Список шагов */
+.instructionWrapperSteps {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.78vw; /* 15px / 1920px * 100 */
+}
+
+.instructionWrapperStepsItem {
+    display: grid;
+    grid-template-columns: 3.23vw 1fr; /* 62px / 1920px * 100 */
+    gap: 1.04vw; /* 20px / 1920px * 100 */
+    align-items: center;
+}
+
+.instructionWrapperStepsNumber {
+    font-family: 'Montserrat3', sans-serif;
+    font-size: 2.4vw; /* 46px / 1920px * 100 */
+    line-height: 2.4vw; /* 46px / 1920px * 100 */
+    font-weight: 500;
+    color: #cecece;
+    margin: 0;
+}
+
+/* Список цветов */
+.instructionWrapperColors {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.instructionWrapperColorsItem {
+    position: relative;
+}
+
+.instructionWrapperColorsName {
+    font-size: 0.83vw; /* 16px / 1920px * 100 */
+    line-height: 1.04vw; /* 20px / 1920px * 100 */
+    font-weight: 600;
+    color: #a4a4a4;
+    padding-left: 2.45vw; /* 47px / 1920px * 100 */
+}
+
+.instructionWrapperColorsName::before {
+    content: "";
+    width: 2.08vw; /* 40px / 1920px * 100 */
+    height: 0.16vw; /* 3px / 1920px * 100 */
+    background-color: #000000;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.itemFelling .instructionWrapperColorsName::before {
+    background-color: rgb(255, 0, 0);
+}
+
+.itemForest .instructionWrapperColorsName::before {
+    background-color: rgb(34, 139, 34);
+}
+
+.itemPlow .instructionWrapperColorsName::before {
+    background-color: rgb(139, 69, 19);
+}
+
+/*.itemPlow{*/
+/*    background-color: brown;*/
+/*}*/
+/*.itemForest{*/
+/*    background-color: green;*/
+/*}*/
+/*.itemFelling{*/
+/*    background-color: blue;*/
+/*}*/
+
+.instructionWrapperColorsItemOrange .instructionWrapperColorsName::before {
+    background-color: #a77730;
+}
+
+/* Картинка */
+.instructionWrapperImage {
+    border: 0.21vw solid #1d213b; /* 4px / 1920px * 100 */
+    box-shadow: 0.52vw 1.3vh #6b9ca0; /* 10px / 1920px * 100, 25px / 1080px * 100 */
+}

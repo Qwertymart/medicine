@@ -1,0 +1,72 @@
+.inputWrapper {
+    display: flex;
+    align-items: center;
+    background: #e0e0e0;
+    border-radius: 20px;
+    padding: 10px;
+    width: auto;
+    height: 67px;
+}
+
+@media (max-width: 768px) {
+    .inputWrapper {
+        height: 55px;
+        padding: 8px;
+    }
+
+    .icon {
+        width: 18px;
+        height: 18px;
+    }
+
+    .input {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .inputWrapper {
+        height: 45px;
+        padding: 6px;
+    }
+
+    .icon {
+        width: 16px;
+        height: 16px;
+        margin-right: 8px;
+    }
+
+    .input {
+        font-size: 12px;
+    }
+}
+
+.icon {
+    content: ' ';
+    background-size: contain;
+    background-repeat: no-repeat;
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+}
+
+.input {
+    border: none;
+    background: transparent;
+    outline: none;
+    flex: 1;
+    font-size: 16px;
+    color: #666;
+}
+
+.icon-people {
+    background-image: url('/icons/user.svg');
+}
+
+.icon-mail {
+    background-image: url('/icons/mail.svg');
+}
+
+.icon-pass {
+    background-image: url('/icons/lock.svg');
+}

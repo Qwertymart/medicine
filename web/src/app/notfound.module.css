@@ -1,0 +1,21 @@
+.container {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    text-align: center;
+    padding: 50px;
+}
+.error404{
+    font-size: 50px;
+    margin: 0;
+}
+.ups{
+    font-size: 20px;
+}
+.cancel{
+    text-decoration: none;
+    color: #007BFF;
+}
+.cancel:hover {
+    text-decoration: underline;
+}

@@ -103,6 +103,30 @@ services:  # Уберите version: '3.8' - это устаревшее
       - prometheus
     restart: unless-stopped
 
+
+  nextjs:
+    build: ./web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+
+  envoy:
+    image: envoyproxy/envoy:v1.33-latest
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml
+    depends_on:
+      - nextjs
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - envoy
+
 volumes:
   postgres_data:
   loki_data:

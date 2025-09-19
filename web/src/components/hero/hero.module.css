@@ -1,0 +1,160 @@
+/*@import url('../../styles/fonts.css'); !* Импортируем шрифты *!*/
+
+
+/*.heroContent {*/
+/*    min-height: 468px;*/
+/*    background-image: url("../../../public/images/hero10.png");*/
+/*    background-repeat: no-repeat;*/
+/*    background-position: bottom left;*/
+/*    background-size: 628px 468px;*/
+/*    position: relative;*/
+/*    background-color: #f5f5f5;*/
+/*}*/
+
+/*.heroHeader {*/
+/*    font-family: "You20133", sans-serif;*/
+/*    font-size: 44px;*/
+/*    line-height: 46px;*/
+/*    font-weight: 400;*/
+/*}*/
+
+/*.heroWrapper {*/
+/*    position: absolute;*/
+/*    left: 685px;*/
+/*    top: 103px;*/
+/*    display: flex;*/
+/*    flex-direction: column;*/
+/*    gap: 20px;*/
+/*}*/
+
+/*.heroText {*/
+/*    font-family: 'Montserrat', sans-serif;*/
+/*    font-size: 16px;*/
+/*    line-height: 18px;*/
+/*    color: #c3c3c3;*/
+/*    width: 345px;*/
+/*}*/
+
+/*.heroLink {*/
+/*    font-family: 'Montserrat', sans-serif;*/
+
+/*    width: 168px;*/
+/*    padding: 20px;*/
+/*    background-color: #1b2143;*/
+/*    border: none;*/
+/*    border-radius: 40px;*/
+/*    font-family: 'Montserrat', sans-serif;*/
+/*    font-size: 16px;*/
+/*    line-height: 18px;*/
+/*    color: #FFFFFF;*/
+/*    text-align: center;*/
+/*    cursor: pointer;*/
+/*    text-decoration: none;*/
+/*}*/
+
+/*.heroPages {*/
+/*    padding: 0;*/
+/*    margin: 0;*/
+/*    list-style: none;*/
+/*    display: flex;*/
+/*    gap: 5px;*/
+/*}*/
+
+/*.heroPagesItem {*/
+/*    width: 76px;*/
+/*    height: 8px;*/
+/*    background-color: #767676;*/
+/*    border-radius: 4px;*/
+/*}*/
+
+/*.heroPagesItemActive {*/
+/*    background-color: #000000;*/
+/*}*/
+
+/*.heroPagesItem:hover {*/
+/*    background-color: #1b2143;*/
+/*}*/
+
+/*!* Определяю heroImage*!*/
+/*.heroImage{*/
+/*    width: 100%;*/
+/*}*/
+
+@import url('../../styles/fonts.css'); /* Импортируем шрифты */
+
+.heroContent {
+    min-height: 48.33vh; /* 468px / 1080px * 100 */
+    background-image: url("../../../public/images/hero10.png");
+    background-repeat: no-repeat;
+    background-position: bottom left;
+    background-size: 32.71vw 43.33vh; /* 628px / 1920px * 100, 468px / 1080px * 100 */
+    position: relative;
+    background-color: #f5f5f5;
+}
+
+.heroHeader {
+    font-family: "You20133", sans-serif;
+    font-size: 2.29vw; /* 44px / 1920px * 100 */
+    line-height: 2.4vw; /* 46px / 1920px * 100 */
+    font-weight: 400;
+}
+
+.heroWrapper {
+    position: absolute;
+    left: 35.68vw; /* 685px / 1920px * 100 */
+    top: 9.54vh; /* 103px / 1080px * 100 */
+    display: flex;
+    flex-direction: column;
+    gap: 1.04vw; /* 20px / 1920px * 100 */
+}
+
+.heroText {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.83vw; /* 16px / 1920px * 100 */
+    line-height: 0.94vw; /* 18px / 1920px * 100 */
+    color: #c3c3c3;
+    width: 17.97vw; /* 345px / 1920px * 100 */
+}
+
+.heroLink {
+    font-family: 'Montserrat', sans-serif;
+    width: 8.75vw; /* 168px / 1920px * 100 */
+    padding: 1.04vw; /* 20px / 1920px * 100 */
+    background-color: #1b2143;
+    border: none;
+    border-radius: 2.08vw; /* 40px / 1920px * 100 */
+    font-size: 0.83vw; /* 16px / 1920px * 100 */
+    line-height: 0.94vw; /* 18px / 1920px * 100 */
+    color: #FFFFFF;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.heroPages {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: flex;
+    gap: 0.26vw; /* 5px / 1920px * 100 */
+}
+
+.heroPagesItem {
+    width: 3.96vw; /* 76px / 1920px * 100 */
+    height: 0.42vw; /* 8px / 1920px * 100 */
+    background-color: #767676;
+    border-radius: 0.21vw; /* 4px / 1920px * 100 */
+}
+
+.heroPagesItemActive {
+    background-color: #000000;
+}
+
+.heroPagesItem:hover {
+    background-color: #1b2143;
+}
+
+/* Определяю heroImage */
+.heroImage {
+    width: 100%;
+}

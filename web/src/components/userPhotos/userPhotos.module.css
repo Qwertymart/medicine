@@ -1,0 +1,20 @@
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 5px;
+    text-align: center;
+}
+
+.title {
+    color: black;
+    font-size: 3.333vw;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(347px, 1fr));
+    gap: 20px;
+    justify-content: center;
+}
