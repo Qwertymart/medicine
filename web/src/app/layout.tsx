@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "@/styles/global.css";
 import Header from "@/components/header/header";
 import Footer from "@/components/footer/footer";
+import { LazyMotion, domAnimation } from "framer-motion";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,7 +38,10 @@ export default async function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <div className="layout">
           <Header />
-          <main className="main">{children}</main>
+          <main className="main">
+            {" "}
+            <LazyMotion features={domAnimation}>{children}</LazyMotion>
+          </main>
           <Footer />
         </div>
       </body>

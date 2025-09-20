@@ -8,6 +8,8 @@ import classNames from "classnames";
 import styles from "./page.module.css";
 import LinksBlock from "@/components/LinksBlock/LinksBlock";
 import { z } from "zod";
+import * as m from "motion/react-m";
+import { AnimatePresence } from "motion/react";
 
 const loginSchema = z.object({
   login: z.string().nonempty("Логин обязателен"),
@@ -33,10 +35,15 @@ export default function LoginPage() {
     const validation = loginSchema.safeParse(loginData);
     if (!validation.success) {
       const fieldErrors: { login?: string; password?: string } = {};
-      validation.error.errors.forEach((err) => {
-        const field = err.path[0] as "login" | "password";
-        fieldErrors[field] = err.message;
-      });
+
+      if (validation.error && validation.error.issues) {
+        validation.error.issues.forEach((issue) => {
+          if (issue.path && issue.path.length > 0) {
+            const field = issue.path[0] as "login" | "password";
+            fieldErrors[field] = issue.message;
+          }
+        });
+      }
       setErrors(fieldErrors);
       return;
     }
@@ -90,38 +97,56 @@ export default function LoginPage() {
           {/* Правая колонка с формой */}
           <div className={styles.item} style={{ padding: "2rem" }}>
             <h2 className={styles.title}>Вход</h2>
-            <Input
-              variant="people"
-              placeholder="Логин"
-              required
-              className={classNames(styles.otstupiki, styles.login)}
-              name="login"
-              style={{ marginBottom: "1vh" }}
-            />
-            {errors.login && (
-              <p style={{ fontSize: "1rem", color: "red" }}>{errors.login}</p>
-            )}
-            <Input
-              variant="pass"
-              className={classNames(styles.otstupiki, styles.pass)}
-              placeholder="Пароль"
-              type="password"
-              name="password"
-              required
-            />{" "}
-            {errors.password && (
-              <p style={{ fontSize: "1rem", color: "red" }}>
-                {errors.password}
-              </p>
-            )}
-            <Button
-              variant="saphire"
-              size="large"
-              type="submit"
-              style={{ marginTop: "2rem" }}
-            >
-              Войти
-            </Button>
+            <AnimatePresence mode="wait">
+              <m.div
+                key="step2"
+                initial={{ opacity: 0, x: -50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 50 }}
+                transition={{ duration: 0.3 }}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  width: "80%",
+                }}
+              >
+                <Input
+                  variant="people"
+                  placeholder="Логин"
+                  required
+                  className={classNames(styles.otstupiki, styles.login)}
+                  name="login"
+                  style={{ marginBottom: "1vh" }}
+                />
+                {errors.login && (
+                  <p style={{ fontSize: "1rem", color: "red" }}>
+                    {errors.login}
+                  </p>
+                )}
+                <Input
+                  variant="pass"
+                  className={classNames(styles.otstupiki, styles.pass)}
+                  placeholder="Пароль"
+                  type="password"
+                  name="password"
+                  required
+                />{" "}
+                {errors.password && (
+                  <p style={{ fontSize: "1rem", color: "red" }}>
+                    {errors.password}
+                  </p>
+                )}
+                <Button
+                  variant="saphire"
+                  size="large"
+                  type="submit"
+                  style={{ marginTop: "2rem" }}
+                >
+                  Войти
+                </Button>
+              </m.div>
+            </AnimatePresence>
           </div>
         </form>
       </div>{" "}

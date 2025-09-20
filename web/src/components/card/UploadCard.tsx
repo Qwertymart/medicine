@@ -5,7 +5,8 @@ import Button from "@/components/button/button";
 import Card from "@/components/card/card";
 import styles from "./upload.module.css";
 import Carousel from "../carousel/carousel";
-import { motion, AnimatePresence } from "framer-motion";
+import * as m from "motion/react-m";
+import { AnimatePresence } from "motion/react";
 import dynamic from "next/dynamic";
 // import ResultCard from "./ResultCard";
 
@@ -143,7 +144,7 @@ export default function UploadCarousel() {
       .finally(() => {
         setTimeout(() => {
           setIsLoading(false);
-        }, 5000);
+        }, 50);
       });
   }
 
@@ -189,7 +190,7 @@ export default function UploadCarousel() {
         {showCamera ? (
           <CameraComponent onPhotoTaken={handlePhotoTaken} />
         ) : (
-          <motion.div
+          <m.div
             ref={containerRef}
             className={styles.mainContent}
             animate={{
@@ -264,13 +265,13 @@ export default function UploadCarousel() {
                 </form>
               </div>
             </Card>
-          </motion.div>
+          </m.div>
         )}
       </div>
 
       <AnimatePresence>
         {showResult && (
-          <motion.div
+          <m.div
             className={styles.resultCard}
             initial={{ opacity: 0, x: 100 }}
             animate={{ opacity: 1, x: 0 }}
@@ -284,7 +285,7 @@ export default function UploadCarousel() {
             ) : (
               <ResultCard previews={result} />
             )}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>

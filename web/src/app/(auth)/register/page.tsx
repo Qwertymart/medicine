@@ -2,7 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+// import { motion, AnimatePresence } from "framer-motion";
+import * as m from "motion/react-m";
+import { AnimatePresence } from "motion/react";
+
 import Input from "@/components/inputs/input";
 import Button from "@/components/button/button";
 import styles from "./page.module.css";
@@ -66,10 +69,19 @@ export default function RegisterForm() {
     });
     if (!validation.success) {
       const newErrors: Partial<Record<keyof RegData, string>> = {};
-      validation.error.errors.forEach((err) => {
-        const field = err.path[0] as keyof RegData;
-        newErrors[field] = err.message;
-      });
+
+      if (validation.error && validation.error.issues) {
+        validation.error.issues.forEach((issue) => {
+          if (issue.path && issue.path.length > 0) {
+            const field = issue.path[0] as keyof RegData;
+            if (
+              Object.keys(baseRegisterSchema.shape).includes(field as string)
+            ) {
+              newErrors[field] = issue.message;
+            }
+          }
+        });
+      }
       setErrors(newErrors);
       return;
     }
@@ -95,10 +107,19 @@ export default function RegisterForm() {
     const validation = registerSchema.safeParse(formData);
     if (!validation.success) {
       const newErrors: Partial<Record<keyof RegData, string>> = {};
-      validation.error.errors.forEach((err) => {
-        const field = err.path[0] as keyof RegData;
-        newErrors[field] = err.message;
-      });
+
+      if (validation.error && validation.error.issues) {
+        validation.error.issues.forEach((issue) => {
+          if (issue.path && issue.path.length > 0) {
+            const field = issue.path[0] as keyof RegData;
+            if (
+              Object.keys(baseRegisterSchema.shape).includes(field as string)
+            ) {
+              newErrors[field] = issue.message;
+            }
+          }
+        });
+      }
       setErrors(newErrors);
       return;
     }
@@ -172,7 +193,7 @@ export default function RegisterForm() {
 
             <AnimatePresence mode="wait">
               {step === 1 && (
-                <motion.div
+                <m.div
                   key="step1"
                   initial={{ opacity: 0, x: -50 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -249,11 +270,11 @@ export default function RegisterForm() {
                   >
                     Продолжить →
                   </Button>
-                </motion.div>
+                </m.div>
               )}
 
               {step === 2 && (
-                <motion.div
+                <m.div
                   key="step2"
                   initial={{ opacity: 0, x: -50 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -333,7 +354,7 @@ export default function RegisterForm() {
                     </Button>
                     <Button type="submit">Зарегистрироваться</Button>
                   </div>
-                </motion.div>
+                </m.div>
               )}
             </AnimatePresence>
           </div>
