@@ -32,16 +32,14 @@ export async function POST(req: Request) {
     const accessToken = (await cookies()).get("access_token")?.value;
     console.log(formData);
     console.log(files);
-    const djangoResponse = await fetch(
-      `${process.env.DJANGO_API}/api/upload/`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: formData,
-      }
-    );
+    const baseUrl = process.env.BACKEND_API;
+    const djangoResponse = await fetch(`${baseUrl}/api/upload/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
 
     if (!djangoResponse.ok) {
       throw new Error("Ошибка загрузки изображений");

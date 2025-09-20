@@ -1,60 +1,22 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+interface UserInfo {
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  avatarSrc: string;
+  photos: Array<{
+    id: number;
+    image: string;
+    created_at: string;
+  }>;
+}
+
 export async function GET() {
   try {
-    // if (process.env.FLAG === "development") {
-    //   const mockUser: UserInfo = {
-    //     firstName: "Вовчик",
-    //     lastName: "Бугренков",
-    //     username: "qwental_",
-    //     email: "vova2005gt@gmail.com",
-    //     avatarSrc: "https://i.imgur.com/kEanQzn.jpeg",
-    //     photos: [
-    //       {
-    //         picSrc: "https://i.imgur.com/YzFSzED.jpeg",
-    //         date: "27.02.2005",
-    //       },
-    //       {
-    //         picSrc: "https://i.imgur.com/YzFSzED.jpeg",
-    //         date: "27.02.2005",
-    //       },
-    //       {
-    //         picSrc: "https://i.imgur.com/YzFSzED.jpeg",
-    //         date: "27.02.2005",
-    //       },
-    //       {
-    //         picSrc: "https://i.imgur.com/YzFSzED.jpeg",
-    //         date: "27.02.2005",
-    //       },
-    //       {
-    //         picSrc: "https://i.imgur.com/YzFSzED.jpeg",
-    //         date: "27.02.2005",
-    //       },
-    //       {
-    //         picSrc: "https://i.imgur.com/YzFSzED.jpeg",
-    //         date: "27.02.2005",
-    //       },
-    //       {
-    //         picSrc: "https://i.imgur.com/YzFSzED.jpeg",
-    //         date: "27.02.2005",
-    //       },
-    //       {
-    //         picSrc: "https://i.imgur.com/YzFSzED.jpeg",
-    //         date: "27.02.2005",
-    //       },
-    //       {
-    //         picSrc: "https://i.imgur.com/YzFSzED.jpeg",
-    //         date: "27.02.2005",
-    //       },
-    //     ],
-    //   };
-    //   return NextResponse.json(mockUser);
-    // }
-
     const accessToken = (await cookies()).get("access_token")?.value;
-    console.log("Access token:", accessToken);
 
     if (!accessToken) {
       return NextResponse.json(
@@ -63,40 +25,31 @@ export async function GET() {
       );
     }
 
-    const baseUrl = process.env.DJANGO_API?.replace(/\/$/, "");
-    const url = `${baseUrl}/api/users/0/`;
-
-    const response = await fetch(url, {
-      method: "GET",
+    const baseUrl = process.env.BACKEND_API;
+    const response = await fetch(`${baseUrl}/api/v1/auth/me`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
       },
+      credentials: "include",
     });
-
-    console.log("ответ:", response.status);
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: "Ошибка запроса к Django" },
+        { error: "Ошибка запроса к серверу" },
         { status: 502 }
       );
     }
 
-    const answer = await response.json();
-    console.log(":", answer);
+    const data = await response.json();
+    const user = data.user;
 
     const userData: UserInfo = {
-      firstName: answer.first_name || "",
-      lastName: answer.last_name || "",
-      username: answer.username || "",
-      email: answer.email || "",
-      avatarSrc: answer.avatar_url || "https://i.imgur.com/kEanQzn.jpeg",
-      photos: (answer.photos || []).map((p: any) => ({
-        id: p.id,
-        image: p.image.startsWith("http") ? p.image : `${baseUrl}${p.image}`,
-        created_at: p.created_at,
-      })),
+      firstName: user.name || "",
+      lastName: user.last_name || "",
+      username: user.username || "",
+      email: user.email || "",
+      avatarSrc: user.avatar_url || "https://i.imgur.com/kEanQzn.jpeg",
+      photos: user.photos || [],
     };
 
     return NextResponse.json(userData);
