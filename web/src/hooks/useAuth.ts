@@ -18,7 +18,9 @@ export const useAuth = () => {
   useEffect(() => {
     const PUBLIC_PATHS = ["/", "/login", "/register"];
     if (PUBLIC_PATHS.includes(pathname)) {
-      setIsLoading(false);
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 50);
       console.log("1");
       return;
     }
@@ -56,7 +58,9 @@ export const useAuth = () => {
             avatarSrc: userData.avatarSrc || "",
             photos: userData.photos || [],
           });
-          setIsLoading(false);
+          setTimeout(() => {
+            setIsLoading(false);
+          }, 50);
         }
       } catch (error) {
         if (isMounted) {
@@ -65,7 +69,9 @@ export const useAuth = () => {
             console.log("Dangerous place!!!");
             router.replace("/login");
           }
-          setIsLoading(false);
+          setTimeout(() => {
+            setIsLoading(false);
+          }, 50);
         }
       }
     };
