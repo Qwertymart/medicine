@@ -1,11 +1,12 @@
-import Hero from "@/components/hero/hero";
-import Instruction from "@/components/instruction/instruction";
+import Graphs from '@/components/Graphs/graphs';
+import {InfoButtons} from '../components/InfoButtons';
+
 
 export default function Home() {
-  return (
-    <main>
-      <Hero/>
-      <Instruction/>
-    </main>
-  );
+    return (
+        <>
+            <InfoButtons />
+            <Graphs />
+        </>
+    );
 }
