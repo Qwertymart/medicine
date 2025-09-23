@@ -38,8 +38,8 @@ export const Wrapper: React.FC<AppProps> = ({children, setTheme, isDark}) => {
             <div className={b('layout')}>
                 <div className={b('header')}>
                     <div className={b('logo')}>
-                        <div className={b('gravity-logo', {dark: isDark})} />
-                        <div className={b('next-logo', {dark: isDark})} />
+                        {/* <div className={b('gravity-logo', {dark: isDark})} />
+                        <div className={b('next-logo', {dark: isDark})} /> */}
                     </div>
                 </div>
                 <div className={b('content')}>{children}</div>
