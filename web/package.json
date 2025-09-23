@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "prepare": "husky install",
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint:js": "eslint --ext .js,.jsx,.ts,.tsx .",
@@ -13,6 +13,7 @@
     "lint": "npm run lint:js && npm run lint:styles && npm run lint:prettier"
   },
   "dependencies": {
+    "@gravity-ui/dashkit": "^9.1.1",
     "@gravity-ui/data-source": "^0.7.0",
     "@gravity-ui/icons": "^2.16.0",
     "@gravity-ui/navigation": "^3.7.0",
