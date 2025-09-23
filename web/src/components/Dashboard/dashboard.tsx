@@ -1,10 +1,10 @@
 'use client';
 
-import {configure, Lang} from '@gravity-ui/uikit';
+import {Button, configure, Icon, Lang} from '@gravity-ui/uikit';
 import {DashKit, DashKitProps} from '@gravity-ui/dashkit';
 import {useState, useEffect} from 'react';
 import {Graphs} from '../Graphs';
-
+import {CirclePlayFill, StopFill} from '@gravity-ui/icons';
 configure({lang: Lang.Ru});
 
 DashKit.setSettings({
@@ -45,7 +45,6 @@ DashKit.registerPlugins(
         },
     },
 );
-
 const config: DashKitProps['config'] = {
     salt: '0.46703554571365613',
     counter: 3,
@@ -122,6 +121,14 @@ export function Dashboard() {
 
     return (
         <div style={{paddingLeft: 20, height: '100vh', width: '100vw'}}>
+            <Button view="outlined" size="l">
+                <Icon data={CirclePlayFill} size={18} />
+                Старт
+            </Button>
+            <Button view="outlined" size="l">
+                Стоп
+                <Icon data={StopFill} size={18} />
+            </Button>
             <DashKit config={config} editMode={true} />
         </div>
     );
