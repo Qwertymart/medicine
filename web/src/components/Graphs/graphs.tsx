@@ -41,12 +41,10 @@ const data: YagrWidgetData = {
     },
 };
 
-function Graphs() {
+export function Graphs() {
     return (
         <div className="app" style={{height: 500}}>
             <ChartKit type="yagr" data={data} />
         </div>
     );
 }
-
-export default Graphs;
