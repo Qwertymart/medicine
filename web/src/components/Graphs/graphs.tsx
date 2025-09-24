@@ -77,7 +77,7 @@ export function Graphs() {
             className={b('container')}
             style={{
                 display: 'flex',
-                flexDirection: 'row',
+                flexDirection: 'column',
                 height: 600,
                 gap: '20px',
             }}
