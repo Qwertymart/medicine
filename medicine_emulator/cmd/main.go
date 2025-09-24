@@ -337,8 +337,8 @@ func main() {
 	defer mqttClient.Disconnect(250)
 
 	deviceID := fmt.Sprintf("CTG-MONITOR-%04d", 1+time.Now().Unix()%9998)
-	bpmDir := "./data/bpm"
-	uterusDir := "./data/uterus"
+	bpmDir := "././data/bpm"
+	uterusDir := "././data/uterus"
 
 	// 1. Находим исходные парные файлы
 	pairedFiles, err := findPairedFiles(bpmDir, uterusDir)
