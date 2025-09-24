@@ -11,7 +11,8 @@
         "lint:styles": "stylelint '{styles,src}/**/*.scss'",
         "lint:prettier": "prettier --check '**/*.md'",
         "lint": "npm run lint:js && npm run lint:styles && npm run lint:prettier",
-        "generate:grpc": "proto-loader-gen-types --longs=String --enums=String --defaults --oneofs --grpcLib=@grpc/grpc-js --outDir=src/proto/generated ../client_grpc/proto/*.proto"
+        "generate:grpc:alt": "grpc_tools_node_protoc --js_out=import_style=commonjs,binary:src/proto/generated --grpc_out=grpc_js:src/proto/generated --ts_out=grpc_js:src/proto/generated --proto_path=../client_grpc/proto ../client_grpc/proto/*.proto",
+        "generate:grpc": "proto-loader-gen-types --longs=String --enums=String --defaults --oneofs --grpcLib=@grpc/grpc-js --outDir=src/proto/generated ../client_grpc/proto/ctg_simple.proto"
     },
     "dependencies": {
         "@gravity-ui/dashkit": "^9.1.1",
@@ -36,11 +37,13 @@
         "@gravity-ui/tsconfig": "^1.0.0",
         "@gravity-ui/uikit": "^7.23.0",
         "@svgr/webpack": "^8.1.0",
+        "@types/google-protobuf": "^3.15.12",
         "@types/node": "^24.5.2",
         "@types/react": "^19.1.13",
         "@types/react-dom": "^19.1.9",
         "eslint": "^9.36.0",
         "eslint-config-next": "^15.5.3",
+        "grpc-tools": "^1.13.0",
         "husky": "^9.1.7",
         "lint-staged": "^16.2.0",
         "prettier": "^3.6.2",
@@ -69,6 +72,18 @@
         ],
         "*.md": [
             "prettier --write"
+        ]
+    },
+    "pnpm": {
+        "ignoredBuiltDependencies": [
+            "grpc-tools"
+        ],
+        "onlyBuiltDependencies": [
+            "@parcel/watcher",
+            "grpc-tools",
+            "protobufjs",
+            "sharp",
+            "unrs-resolver"
         ]
     }
 }
