@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
-import {Theme, ThemeProvider} from '@gravity-ui/uikit';
+import {configure, Lang, Theme, ThemeProvider} from '@gravity-ui/uikit';
 
-import {Ghost} from '@gravity-ui/icons';
+import {HeartPulse} from '@gravity-ui/icons';
 import {AsideHeader} from '@gravity-ui/navigation';
 
 import {DARK, DEFAULT_THEME, Wrapper} from '../Wrapper';
+
+configure({lang: Lang.Ru});
 
 interface AppProps {
     children: React.ReactNode;
@@ -17,7 +19,7 @@ export const App: React.FC<AppProps> = ({children}) => {
     return (
         <ThemeProvider theme={theme}>
             <AsideHeader
-                logo={{icon: Ghost, text: 'nextjs-example'}}
+                logo={{icon: HeartPulse, text: 'medicine'}}
                 compact={true}
                 hideCollapseButton={true}
                 renderContent={() => (
