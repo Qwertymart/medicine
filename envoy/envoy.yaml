@@ -9,23 +9,30 @@ static_resources:
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 stat_prefix: ingress
+                codec_type: AUTO
                 route_config:
                   name: local_route
                   virtual_hosts:
                     - name: nextjs
                       domains: ["*"]
                       routes:
-                        - match: { prefix: "/" }
+                        - match: { prefix: "/", grpc: {} }
                           route:
                             cluster: nextjs
                 http_filters:
                   - name: envoy.filters.http.router
+                  - name: envoy.filters.http.grpc_web
 
   clusters:
     - name: nextjs
       connect_timeout: 30s
       type: LOGICAL_DNS
       lb_policy: ROUND_ROBIN
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config:
+            http2_protocol_options: {}
       load_assignment:
         cluster_name: nextjs
         endpoints:
