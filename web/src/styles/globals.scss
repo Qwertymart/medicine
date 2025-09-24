@@ -1,0 +1,16 @@
+html,
+body,
+#__next {
+    --dashkit-grid-item-edit-opacit: 1;
+    // --dashkit-overlay-color: var(--g-color-base-float);
+    --dashkit-overlay-border-color: var(--g-color-base-float);
+    --dashkit-overlay-opacity: 0.5;
+
+    --dashkit-action-panel-border-color: var(--g-color-line-info);
+    --dashkit-action-panel-color: var(--g-color-base-float-accent);
+    --dashkit-action-panel-border-radius: var(--g-border-radius-xxl);
+    
+    height: 100%;
+    min-width: 320px;
+    margin: 0;
+}

@@ -1,0 +1,83 @@
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9095
+
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: inmemory
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+
+ruler:
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
+  rule_path: /loki/rules
+  alertmanager_url: http://localhost:9093
+  ring:
+    kvstore:
+      store: inmemory
+  enable_api: true
+
+analytics:
+  reporting_enabled: false
+
+# Настройки хранения и ретеншена
+limits_config:
+  retention_period: 168h  # 7 дней
+  ingestion_rate_mb: 4    # 4MB/s на поток
+  ingestion_burst_size_mb: 6
+  max_global_streams_per_user: 10000
+  max_query_series: 500
+  max_streams_per_user: 0
+  max_line_size: 256000
+
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 168h
+
+compactor:
+  working_directory: /loki/compactor
+  shared_store: filesystem
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  retention_delete_worker_count: 150
+
+# Настройки для production
+# frontend:
+#   max_outstanding_per_tenant: 256
+#   compress_responses: true
+
+# querier:
+#   max_concurrent: 20
+#   query_timeout: 1m
+
+# query_scheduler:
+#   max_outstanding_requests_per_tenant: 256
