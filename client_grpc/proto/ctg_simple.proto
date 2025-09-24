@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package ctg;
+
+option go_package = ".";
+
+
+service CTGStreamService {
+  // Стриминг данных КТГ (только значения)
+  rpc StreamCTGData(StreamRequest) returns (stream CTGDataResponse);
+}
+
+// Запрос на стриминг
+message StreamRequest {
+  repeated string device_ids = 1;  // ID устройств для подписки
+  repeated string data_types = 2;  // Типы данных (fetal_heart_rate, uterine_contractions)
+}
+
+// Ответ со стримингом данных КТГ (минимальный)
+message CTGDataResponse {
+  string device_id = 1;
+  string data_type = 2;
+  double value = 3;                // Значение (-1 = потеря сигнала)
+  double time_sec = 4;             // Время в секундах
+}
