@@ -1,11 +1,13 @@
 'use client';
 
-import {Button, configure, Icon, Lang} from '@gravity-ui/uikit';
+import {Button, Icon} from '@gravity-ui/uikit';
 import {DashKit, DashKitProps} from '@gravity-ui/dashkit';
 import {useState, useEffect} from 'react';
 import {Graphs} from '../Graphs';
 import {CirclePlayFill, StopFill} from '@gravity-ui/icons';
-configure({lang: Lang.Ru});
+import block from 'bem-cn-lite';
+
+const b = block('dashboard');
 
 DashKit.setSettings({
     gridLayout: {margin: [9, 9]},
@@ -18,7 +20,7 @@ DashKit.registerPlugins(
         defaultLayout: {w: 16, h: 14},
         renderer: function Widget1() {
             return (
-                <div style={{padding: '10px', background: '#e3f2fd'}}>
+                <div style={{padding: '10px', background: '#ffffff'}}>
                     <h1>Первый виджет</h1>
                     <Graphs />
                 </div>
@@ -30,7 +32,7 @@ DashKit.registerPlugins(
         defaultLayout: {w: 16, h: 14},
         renderer: function Widget2() {
             return (
-                <div style={{padding: '10px', background: '#f3e5f5'}}>
+                <div style={{padding: '10px', background: '#ffffff'}}>
                     <h1>Второй виджет</h1>
                     <Graphs />
                 </div>
@@ -41,7 +43,7 @@ DashKit.registerPlugins(
         type: 'widget3',
         defaultLayout: {w: 6, h: 4},
         renderer: function Widget3() {
-            return <div style={{padding: '10px', background: '#e8f5e9'}}>Третий виджет</div>;
+            return <div style={{padding: '10px', background: '#ffffff'}}>Третий виджет</div>;
         },
     },
 );
@@ -98,6 +100,14 @@ const config: DashKitProps['config'] = {
 export function Dashboard() {
     const [mounted, setMounted] = useState(false);
 
+    function handleStart() {
+        throw new Error('Function not implemented.');
+    }
+
+    function handleStop() {
+        throw new Error('Function not implemented.');
+    }
+
     useEffect(() => {
         setMounted(true);
     }, []);
@@ -120,15 +130,25 @@ export function Dashboard() {
     }
 
     return (
-        <div style={{paddingLeft: 20, height: '100vh', width: '100vw'}}>
-            <Button view="outlined" size="l">
-                <Icon data={CirclePlayFill} size={18} />
-                Старт
-            </Button>
-            <Button view="outlined" size="l">
-                Стоп
-                <Icon data={StopFill} size={18} />
-            </Button>
+        <div className={b('container')} style={{paddingLeft: 20, height: '100vh', width: '100vw'}}>
+            <div
+                className={b('buttons')}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingBottom: 10,
+                }}
+            >
+                <Button view="outlined" size="xl" onClick={handleStart}>
+                    <Icon data={CirclePlayFill} size={36} />
+                    Старт
+                </Button>
+                <Button view="outlined" size="xl" onClick={handleStop}>
+                    Стоп
+                    <Icon data={StopFill} size={36} />
+                </Button>
+            </div>
             <DashKit config={config} editMode={true} />
         </div>
     );
