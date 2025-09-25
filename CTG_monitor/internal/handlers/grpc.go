@@ -23,6 +23,7 @@ type GRPCStreamer struct {
 	// Буфер для накопления данных
 	batchBuffer map[string][]*pb.CTGDataResponse
 	batchMu     sync.RWMutex
+	subscribers map[string]*StreamSubscriber
 
 	// Таймер строго на 4 минуты
 	batchTicker *time.Ticker
@@ -42,11 +43,21 @@ type BatchSubscriber struct {
 	Context   context.Context
 }
 
+type StreamSubscriber struct {
+	ID        string
+	DeviceIDs []string
+	DataTypes []string
+	Channel   chan *pb.CTGDataResponse
+	Stream    pb.CTGStreamService_StreamCTGDataServer
+	Context   context.Context
+}
+
 // NewGRPCStreamer создает новый батчевый стример
 func NewGRPCStreamer() *GRPCStreamer {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	streamer := &GRPCStreamer{
+		subscribers:  make(map[string]*StreamSubscriber),
 		batchClients: make(map[string]*BatchSubscriber),
 		batchBuffer:  make(map[string][]*pb.CTGDataResponse),
 		batchTicker:  time.NewTicker(4 * time.Minute),
@@ -120,14 +131,26 @@ func (gs *GRPCStreamer) StreamBatchCTGData(req *pb.StreamRequest, stream pb.CTGS
 
 // BroadcastCTGData добавляет данные в буфер для батчевой отправки
 func (gs *GRPCStreamer) BroadcastCTGData(data *pb.CTGDataResponse) {
+	gs.mu.RLock()
+
+	// Отправляем потоковым подписчикам
+	for clientID, subscriber := range gs.subscribers {
+		select {
+		case subscriber.Channel <- data:
+			// Успешно отправлено
+		default:
+			log.Printf("⚠️ Канал потокового клиента %s переполнен", clientID)
+		}
+	}
+	gs.mu.RUnlock()
+
+	// Добавляем в батчевый буфер
 	gs.batchMu.Lock()
 	defer gs.batchMu.Unlock()
 
-	// Просто добавляем в буфер без проверки размера
 	deviceKey := data.DeviceId
 	gs.batchBuffer[deviceKey] = append(gs.batchBuffer[deviceKey], data)
 
-	// Логирование каждые 1000 точек для мониторинга
 	if len(gs.batchBuffer[deviceKey])%1000 == 0 {
 		log.Printf("📊 Накоплено %d точек для устройства %s", len(gs.batchBuffer[deviceKey]), deviceKey)
 	}
@@ -251,4 +274,74 @@ func (gs *GRPCStreamer) Stop() {
 	gs.batchTicker.Stop()
 	gs.wg.Wait()
 	log.Println("✅ gRPC Batch Streamer остановлен")
+}
+
+func (gs *GRPCStreamer) StreamCTGData(req *pb.StreamRequest, stream pb.CTGStreamService_StreamCTGDataServer) error {
+	clientID := fmt.Sprintf("stream_client_%d", time.Now().UnixNano())
+	log.Printf("🔌 Новый потоковый клиент подключен: %s, устройства: %v", clientID, req.DeviceIds)
+
+	// Создаем подписчика
+	subscriber := &StreamSubscriber{
+		ID:        clientID,
+		DeviceIDs: req.DeviceIds,
+		DataTypes: req.DataTypes,
+		Channel:   make(chan *pb.CTGDataResponse, 2000),
+		Stream:    stream,
+		Context:   stream.Context(),
+	}
+
+	// Регистрируем подписчика
+	gs.mu.Lock()
+	gs.subscribers[clientID] = subscriber
+	gs.mu.Unlock()
+
+	// Очистка при отключении
+	defer func() {
+		gs.mu.Lock()
+		delete(gs.subscribers, clientID)
+		close(subscriber.Channel)
+		gs.mu.Unlock()
+		log.Printf("🔌 Потоковый клиент отключен: %s", clientID)
+	}()
+
+	// Обработка отправки данных
+	for {
+		select {
+		case data := <-subscriber.Channel:
+			if gs.shouldSendData(data, req) {
+				if err := stream.Send(data); err != nil {
+					log.Printf("❌ Ошибка отправки потоковых данных клиенту %s: %v", clientID, err)
+					return err
+				}
+			}
+		case <-subscriber.Context.Done():
+			log.Printf("🛑 Контекст потокового клиента завершен: %s", clientID)
+			return subscriber.Context.Err()
+		}
+	}
+}
+
+// shouldSendData проверяет, нужно ли отправлять данные клиенту
+func (gs *GRPCStreamer) shouldSendData(data *pb.CTGDataResponse, req *pb.StreamRequest) bool {
+	// Проверка устройства
+	if len(req.DeviceIds) > 0 && !gs.containsDevice(req.DeviceIds, data.DeviceId) {
+		return false
+	}
+
+	// Проверка типа данных
+	if len(req.DataTypes) > 0 && !gs.containsDataType(req.DataTypes, data.DataType) {
+		return false
+	}
+
+	return true
+}
+
+// containsDataType проверяет наличие типа данных в списке
+func (gs *GRPCStreamer) containsDataType(dataTypes []string, dataType string) bool {
+	for _, dt := range dataTypes {
+		if dt == dataType {
+			return true
+		}
+	}
+	return false
 }
