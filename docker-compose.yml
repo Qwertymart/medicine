@@ -22,5 +22,38 @@ services:
     network_mode: "host"
     depends_on:
       - postgres
+  nextjs:
+    build: ./web
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=production
+
+  envoy:
+    image: envoyproxy/envoy:v1.33-latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml
+    depends_on:
+      - nextjs
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - envoy
+    networks:
+      - app-network
+
 volumes:
   postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
