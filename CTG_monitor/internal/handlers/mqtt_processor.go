@@ -229,8 +229,10 @@ func (p *MQTTStreamProcessor) sendBatch(batch []*pb.CTGDataResponse) {
 	}
 
 	// Отправляем батчи для каждого устройства
-	for deviceID, deviceBatch := range deviceBatches {
-		p.grpcStreamer.BroadcastBatch(deviceID, deviceBatch)
+	for _, deviceBatch := range deviceBatches {
+		for _, data := range deviceBatch {
+			p.grpcStreamer.BroadcastCTGData(data)
+		}
 	}
 
 	log.Printf("📦 Отправлен батч данных: %d точек для %d устройств",

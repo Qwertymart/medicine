@@ -104,7 +104,6 @@ func (api *RESTAPIServer) SetupRoutes() *gin.Engine {
 	// === МОНИТОРИНГ СЕРВИСА ===
 	monitoring := api_group.Group("/monitoring")
 	{
-		monitoring.GET("/status", api.GetServiceStatus)
 		monitoring.GET("/health", api.HealthCheck)
 		monitoring.POST("/cleanup", api.CleanupSessions)
 	}
@@ -374,24 +373,6 @@ func (api *RESTAPIServer) GetDeviceStatus(c *gin.Context) {
 			"session_id": nil,
 		})
 	}
-}
-
-// GetServiceStatus возвращает статус сервиса
-func (api *RESTAPIServer) GetServiceStatus(c *gin.Context) {
-	streamClients, batchClients := api.grpcStreamer.GetSubscriberCount()
-	statistics := api.sessionManager.GetSessionStatistics()
-
-	response := ServiceStatusResponse{
-		Service:        "CTG Monitor",
-		Status:         "healthy",
-		Timestamp:      time.Now().UTC(),
-		ActiveSessions: api.sessionManager.GetActiveSessionCount(),
-		StreamClients:  streamClients,
-		BatchClients:   batchClients,
-		Statistics:     statistics,
-	}
-
-	c.JSON(http.StatusOK, response)
 }
 
 // HealthCheck проверка здоровья сервиса
