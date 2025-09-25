@@ -1,3 +1,4 @@
+// ИСПРАВЛЕННАЯ ВЕРСИЯ эмулятора - исправляем MQTT топики
 package main
 
 import (
@@ -52,10 +53,12 @@ func initMQTTClient() error {
 	opts.SetCleanSession(true)
 	opts.OnConnect = connectHandler
 	opts.OnConnectionLost = connectLostHandler
+
 	mqttClient = mqtt.NewClient(opts)
 	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("ошибка подключения к MQTT: %v", token.Error())
 	}
+
 	return nil
 }
 
@@ -64,44 +67,49 @@ func publishMQTT(topic string, data MedicalData) error {
 	if err != nil {
 		return fmt.Errorf("ошибка сериализации JSON: %v", err)
 	}
+
 	token := mqttClient.Publish(topic, 1, false, jsonData)
 	if !token.WaitTimeout(2 * time.Second) {
 		return fmt.Errorf("таймаут отправки MQTT")
 	}
+
 	return token.Error()
 }
 
-// --- Функции для работы с файлами ---
-
+// --- Функции для работы с файлами (без изменений) ---
 func readCSVFile(filename string) ([]CSVRecord, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка открытия файла %s: %v", filename, err)
 	}
 	defer file.Close()
+
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("ошибка чтения CSV файла %s: %v", filename, err)
 	}
+
 	var csvRecords []CSVRecord
 	for i, record := range records {
 		// Пропускаем заголовок и некорректные строки
 		if i == 0 || len(record) < 2 {
 			continue
 		}
-		// Пропускаем строки с нечисловыми значениями (на случай старого заголовка)
+
+		// Пропускаем строки с нечисловыми значениями
 		timeSec, errT := strconv.ParseFloat(record[0], 64)
 		value, errV := strconv.ParseFloat(record[1], 64)
 		if errT != nil || errV != nil {
 			continue
 		}
+
 		csvRecords = append(csvRecords, CSVRecord{TimeSec: timeSec, Value: value})
 	}
+
 	return csvRecords, nil
 }
 
-// Новая функция для записи данных в CSV файл
 func writeCSVFile(filename string, records []CSVRecord) error {
 	file, err := os.Create(filename)
 	if err != nil {
@@ -127,6 +135,7 @@ func writeCSVFile(filename string, records []CSVRecord) error {
 			return fmt.Errorf("не удалось записать строку в %s: %v", filename, err)
 		}
 	}
+
 	return nil
 }
 
@@ -139,6 +148,7 @@ func findPairedFiles(bpmDir, uterusDir string) ([][2]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("не удалось прочитать директорию %s: %v", dir, err)
 		}
+
 		for _, f := range files {
 			// Игнорируем уже исправленные файлы
 			if !f.IsDir() && !strings.HasSuffix(f.Name(), "_fixed.csv") {
@@ -156,6 +166,7 @@ func findPairedFiles(bpmDir, uterusDir string) ([][2]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	uterusMap, err := createFileMap(uterusDir)
 	if err != nil {
 		return nil, err
@@ -174,15 +185,16 @@ func findPairedFiles(bpmDir, uterusDir string) ([][2]string, error) {
 		pair := [2]string{bpmMap[key], uterusMap[key]}
 		pairedFiles = append(pairedFiles, pair)
 	}
+
 	return pairedFiles, nil
 }
 
-// --- Новая функция для нормализации и сохранения файлов ---
 func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 	bpmRecords, err := readCSVFile(bpmPath)
 	if err != nil {
 		return "", "", err
 	}
+
 	uterusRecords, err := readCSVFile(uterusPath)
 	if err != nil {
 		return "", "", err
@@ -193,6 +205,7 @@ func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 	for _, r := range bpmRecords {
 		bpmMap[r.TimeSec] = r.Value
 	}
+
 	uterusMap := make(map[float64]float64)
 	for _, r := range uterusRecords {
 		uterusMap[r.TimeSec] = r.Value
@@ -223,6 +236,7 @@ func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 		} else {
 			fixedBPM = append(fixedBPM, CSVRecord{TimeSec: ts, Value: -1})
 		}
+
 		// Для Uterus
 		if val, ok := uterusMap[ts]; ok {
 			fixedUterus = append(fixedUterus, CSVRecord{TimeSec: ts, Value: val})
@@ -239,38 +253,41 @@ func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 	if err := writeCSVFile(fixedBPMPath, fixedBPM); err != nil {
 		return "", "", err
 	}
+
 	if err := writeCSVFile(fixedUterusPath, fixedUterus); err != nil {
 		return "", "", err
 	}
 
-	fmt.Printf("✓ Файлы нормализованы:\n  -> %s\n  -> %s\n", filepath.Base(fixedBPMPath), filepath.Base(fixedUterusPath))
-
+	fmt.Printf("✓ Файлы нормализованы:\n -> %s\n -> %s\n", filepath.Base(fixedBPMPath), filepath.Base(fixedUterusPath))
 	return fixedBPMPath, fixedUterusPath, nil
 }
 
-// --- Основная логика эмуляции (без изменений) ---
+// 🔥 ИСПРАВЛЕННАЯ функция эмуляции с правильными топиками
 func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float64, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	var bpmRecords, uterusRecords []CSVRecord
 	var readErrBPM, readErrUterus error
 	var readWg sync.WaitGroup
-	readWg.Add(2)
 
+	readWg.Add(2)
 	go func() {
 		defer readWg.Done()
 		bpmRecords, readErrBPM = readCSVFile(bpmFile)
 	}()
+
 	go func() {
 		defer readWg.Done()
 		uterusRecords, readErrUterus = readCSVFile(uterusFile)
 	}()
+
 	readWg.Wait()
 
 	if readErrBPM != nil || readErrUterus != nil {
 		log.Printf("Ошибка чтения одного из файлов для сеанса %s. Пропуск.", filepath.Base(bpmFile))
 		return
 	}
+
 	if len(bpmRecords) == 0 || len(uterusRecords) == 0 {
 		log.Printf("Сеанс для %s пропущен: один из файлов пуст.", filepath.Base(bpmFile))
 		return
@@ -287,31 +304,47 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 		var wgPublish sync.WaitGroup
 		wgPublish.Add(2)
 
+		// 🔥 ИСПРАВЛЕНО: Отправляем FHR данные с правильным топиком
 		go func(record CSVRecord) {
 			defer wgPublish.Done()
-			if record.Value == -1 {
-				return
-			} // Не отправляем "пустые" значения
+
 			data := MedicalData{
-				DeviceID: deviceID, Timestamp: time.Now().UnixNano(), DataType: "fetal_heart_rate",
-				Value: record.Value, Units: "bpm", TimeSec: record.TimeSec,
+				DeviceID:  deviceID,
+				Timestamp: time.Now().UnixNano(),
+				DataType:  "fetal_heart_rate",
+				Value:     record.Value,
+				Units:     "bpm",
+				TimeSec:   record.TimeSec,
 			}
-			if err := publishMQTT("medical/ctg/fhr", data); err != nil {
-				log.Printf("Ошибка отправки BPM: %v", err)
+
+			// 🔥 ПРАВИЛЬНЫЙ ТОПИК: medical/ctg/fetal_heart_rate/{deviceID}
+			topic := fmt.Sprintf("medical/ctg/fetal_heart_rate/%s", deviceID)
+			if err := publishMQTT(topic, data); err != nil {
+				log.Printf("Ошибка отправки FHR: %v", err)
+			} else {
+				fmt.Printf("📡 FHR: %.1f bpm (t=%.1fs) -> %s\n", record.Value, record.TimeSec, topic)
 			}
 		}(bpmRecords[i])
 
+		// 🔥 ИСПРАВЛЕНО: Отправляем UC данные с правильным топиком
 		go func(record CSVRecord) {
 			defer wgPublish.Done()
-			if record.Value == -1 {
-				return
-			} // Не отправляем "пустые" значения
+
 			data := MedicalData{
-				DeviceID: deviceID, Timestamp: time.Now().UnixNano(), DataType: "uterine_contractions",
-				Value: record.Value, Units: "mmHg", TimeSec: record.TimeSec,
+				DeviceID:  deviceID,
+				Timestamp: time.Now().UnixNano(),
+				DataType:  "uterine_contractions",
+				Value:     record.Value,
+				Units:     "mmHg",
+				TimeSec:   record.TimeSec,
 			}
-			if err := publishMQTT("medical/ctg/uterus", data); err != nil {
-				log.Printf("Ошибка отправки Uterus: %v", err)
+
+			// 🔥 ПРАВИЛЬНЫЙ ТОПИК: medical/ctg/uterine_contractions/{deviceID}
+			topic := fmt.Sprintf("medical/ctg/uterine_contractions/%s", deviceID)
+			if err := publishMQTT(topic, data); err != nil {
+				log.Printf("Ошибка отправки UC: %v", err)
+			} else {
+				fmt.Printf("📡 UC: %.1f mmHg (t=%.1fs) -> %s\n", record.Value, record.TimeSec, topic)
 			}
 		}(uterusRecords[i])
 
@@ -329,7 +362,7 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 // Главная функция
 func main() {
 	log.SetFlags(log.LstdFlags)
-	fmt.Println("=== ЭМУЛЯТОР МЕДИЦИНСКОГО ОБОРУДОВАНИЯ v3.2 (с нормализацией данных) ===")
+	fmt.Println("=== ЭМУЛЯТОР МЕДИЦИНСКОГО ОБОРУДОВАНИЯ v3.3 (ИСПРАВЛЕННЫЕ ТОПИКИ) ===")
 
 	if err := initMQTTClient(); err != nil {
 		log.Fatalf("Не удалось инициализировать MQTT клиент: %v", err)
@@ -337,6 +370,8 @@ func main() {
 	defer mqttClient.Disconnect(250)
 
 	deviceID := fmt.Sprintf("CTG-MONITOR-%04d", 1+time.Now().Unix()%9998)
+	fmt.Printf("🔧 Device ID: %s\n", deviceID)
+
 	bpmDir := "././data/bpm"
 	uterusDir := "././data/uterus"
 
@@ -345,6 +380,7 @@ func main() {
 	if err != nil || len(pairedFiles) == 0 {
 		log.Fatalf("Не найдены парные файлы для обработки в директориях %s и %s. Завершение работы.", bpmDir, uterusDir)
 	}
+
 	fmt.Printf("📂 Найдено %d парных сеансов для обработки.\n\n", len(pairedFiles))
 
 	// 2. Нормализуем каждую пару и собираем пути к новым файлам
@@ -363,21 +399,23 @@ func main() {
 	}
 
 	fmt.Printf("\n🔄 Нормализация завершена. Готово к эмуляции %d сеансов.\n", len(normalizedFiles))
+	fmt.Printf("📡 MQTT топики:\n")
+	fmt.Printf("   • medical/ctg/fetal_heart_rate/%s\n", deviceID)
+	fmt.Printf("   • medical/ctg/uterine_contractions/%s\n\n", deviceID)
 
 	// 3. Запускаем бесконечный цикл эмуляции с использованием _fixed файлов
 	for {
 		for _, pair := range normalizedFiles {
 			fmt.Printf("\n==================== НАЧАЛО СЕАНСА КТГ (%s) ====================\n", filepath.Base(pair[0]))
-
 			var wg sync.WaitGroup
 			wg.Add(1)
 			go emulateSession(pair[0], pair[1], deviceID, 1.0, &wg)
 			wg.Wait()
-
 			fmt.Printf("==================== СЕАНС КТГ %s ЗАВЕРШЕН ====================\n", filepath.Base(pair[0]))
-			fmt.Println("⏸️  Пауза 5 секунд перед следующим сеансом...")
+			fmt.Println("⏸️ Пауза 5 секунд перед следующим сеансом...")
 			time.Sleep(5 * time.Second)
 		}
+
 		fmt.Println("\n🏁 Все сеансы завершены. Начинаем цикл заново через 10 секунд.")
 		time.Sleep(10 * time.Second)
 	}
