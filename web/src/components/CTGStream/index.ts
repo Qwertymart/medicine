@@ -1,1 +1,3 @@
-export * from './ctgstream';
+import { CTGStreamComponent } from "./ctgstream";
+
+export default CTGStreamComponent;
