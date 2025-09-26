@@ -1,11 +1,11 @@
 'use client';
 
-import {Button, Icon} from '@gravity-ui/uikit';
 import {DashKit, DashKitProps} from '@gravity-ui/dashkit';
 import {useState, useEffect} from 'react';
 import {Graphs} from '../Graphs';
-import {CirclePlayFill, StopFill} from '@gravity-ui/icons';
 import block from 'bem-cn-lite';
+import {SessionProvider} from './SessionContext';
+import {SessionControl} from './SessionCtrl';
 
 const b = block('dashboard');
 
@@ -100,14 +100,6 @@ const config: DashKitProps['config'] = {
 export function Dashboard() {
     const [mounted, setMounted] = useState(false);
 
-    function handleStart() {
-        throw new Error('Function not implemented.');
-    }
-
-    function handleStop() {
-        throw new Error('Function not implemented.');
-    }
-
     useEffect(() => {
         setMounted(true);
     }, []);
@@ -130,26 +122,14 @@ export function Dashboard() {
     }
 
     return (
-        <div className={b('container')} style={{paddingLeft: 20, height: '100vh', width: '100vw'}}>
+        <SessionProvider>
             <div
-                className={b('buttons')}
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingBottom: 10,
-                }}
+                className={b('container')}
+                style={{paddingLeft: 20, height: '100vh', width: '100vw'}}
             >
-                <Button view="outlined" size="xl" onClick={handleStart}>
-                    <Icon data={CirclePlayFill} size={36} />
-                    Старт
-                </Button>
-                <Button view="outlined" size="xl" onClick={handleStop}>
-                    Стоп
-                    <Icon data={StopFill} size={36} />
-                </Button>
+                <SessionControl />
+                <DashKit config={config} editMode={true} />
             </div>
-            <DashKit config={config} editMode={true} />
-        </div>
+        </SessionProvider>
     );
 }
