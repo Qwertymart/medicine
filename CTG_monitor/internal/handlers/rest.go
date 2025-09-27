@@ -318,6 +318,7 @@ func (api *RESTAPIServer) StopSession(c *gin.Context) {
 		Message: "Сессия успешно завершена",
 		Data:    response,
 	})
+	go SendSessionToMedicalRecords(sessionID)
 }
 
 //// GetActiveSessions возвращает список активных сессий

@@ -71,7 +71,6 @@ func (p *MQTTStreamProcessor) HandleIncomingMQTT(topic string, payload []byte) {
 	}
 
 	dataType := parts[2]
-	deviceID := parts[3]
 
 	// Парсинг JSON
 	var data models.MedicalData
@@ -81,9 +80,7 @@ func (p *MQTTStreamProcessor) HandleIncomingMQTT(topic string, payload []byte) {
 	}
 
 	// Заполнение из топика, если не указано
-	if data.DeviceID == "" {
-		data.DeviceID = deviceID
-	}
+	data.DeviceID = p.sessionManager.GetAllDevices()[0]
 	if data.DataType == "" {
 		data.DataType = dataType
 	}

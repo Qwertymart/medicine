@@ -10,7 +10,7 @@ type CTGSession struct {
 	// Основные идентификаторы
 	ID       uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	CardID   uuid.UUID `json:"card_id" gorm:"type:uuid;not null;index"`
-	DeviceID string    `json:"device_id" gorm:"type:varchar(100);not null;index"`
+	DeviceID string    `json:"device_id" gorm:"type:varchar(100);index"`
 
 	// Метаданные сессии
 	StartTime time.Time  `json:"start_time" gorm:"not null;index"`

@@ -124,6 +124,12 @@ func main() {
 		}
 	}()
 
+	if err := handlers.InitMedicalRecordsClient("localhost:50052"); err != nil {
+		log.Printf("⚠️ Не удалось подключиться к сервису медкарт: %v", err)
+		log.Println("⚠️ Продолжаем работу без интеграции с медкартами")
+	}
+	defer handlers.CloseMedicalRecordsClient()
+
 	// 8. Запуск REST API сервера
 	restAPI := handlers.NewRESTAPIServer(sessionManager, grpcStreamer, mqttProcessor)
 	router := restAPI.SetupRoutes()
