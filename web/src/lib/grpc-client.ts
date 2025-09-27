@@ -70,7 +70,7 @@ if (typeof ctgStreamService !== 'function') {
 }
 
 export const serverClient = new ctgStreamService(
-    'localhost:9090',
+    'localhost:50051',
     grpc.credentials.createInsecure(),
 );
 
