@@ -40,7 +40,7 @@ interface SessionContextValue {
     error: string | null;
     isConnected: boolean;
     ctgData: CTGDataPoint[];
-    startSession: () => Promise<void>;
+    startSession: (cardId: string) => Promise<void>;
     stopSession: () => Promise<void>;
     refresh: () => void;
     clearError: () => void;
@@ -91,91 +91,100 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
         }
     }, []);
 
-    const startSession = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        setCtgData([]);
-
-        try {
-            const response = await fetch(`${API_BASE}/sessions/start`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                const errorData: ApiError = await response.json();
-                throw new Error(errorData.details || errorData.error);
+    const startSession = useCallback(
+        async (cardId: string) => {
+            if (!cardId.trim()) {
+                setError('Введите card_id');
+                return;
             }
 
-            const result = await response.json();
-            if (result.data) {
-                setActiveSession(result.data);
-                localStorage.setItem('ctg_session', JSON.stringify(result.data));
+            setIsLoading(true);
+            setError(null);
+            setCtgData([]);
 
-                const startStream = () => {
-                    // const deviceIds = [result.data.device_id];
-                    // const dataTypes = ['fetal_heart_rate', 'uterine_contractions'];
+            try {
+                const response = await fetch(`${API_BASE}/sessions/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        device_id: process.env.NEXT_PUBLIC_DEVICE_ID || '',
+                        card_id: cardId.trim(),
+                    }),
+                });
 
-                    const params = new URLSearchParams({
-                        device_Id: result.data.device_id,
-                        dataTypes: process.env.NEXT_PUBLIC_CARD_ID || "",
-                    });
+                if (!response.ok) {
+                    const errorData: ApiError = await response.json();
+                    throw new Error(errorData.details || errorData.error);
+                }
 
-                    try {
-                        setError(null);
-                        const eventSource = new EventSource(`/api/stream-sse?${params}`);
-                        eventSourceRef.current = eventSource;
+                const result = await response.json();
+                if (result.data) {
+                    setActiveSession(result.data);
+                    localStorage.setItem('ctg_session', JSON.stringify(result.data));
 
-                        eventSource.onopen = () => {
-                            console.log('CTG Stream connected');
-                            setIsConnected(true);
-                        };
+                    const startStream = () => {
+                        const params = new URLSearchParams({
+                            device_id: process.env.NEXT_PUBLIC_DEVICE_ID || '',
+                            card_id: cardId.trim(),
+                        });
 
-                        eventSource.onmessage = (event) => {
-                            try {
-                                const message: StreamMessage = JSON.parse(event.data);
+                        try {
+                            setError(null);
+                            const eventSource = new EventSource(`/api/stream-sse?${params}`);
+                            eventSourceRef.current = eventSource;
 
-                                if (message.type === 'end') {
-                                    console.log('Stream ended by server');
-                                    eventSource.close();
-                                    setIsConnected(false);
-                                    return;
+                            eventSource.onopen = () => {
+                                console.log('CTG Stream connected');
+                                setIsConnected(true);
+                            };
+
+                            eventSource.onmessage = (event) => {
+                                try {
+                                    const message: StreamMessage = JSON.parse(event.data);
+
+                                    if (message.type === 'end') {
+                                        console.log('Stream ended by server');
+                                        eventSource.close();
+                                        setIsConnected(false);
+                                        return;
+                                    }
+
+                                    if (message.type === 'error') {
+                                        setError(message.message || 'Stream error');
+                                        eventSource.close();
+                                        setIsConnected(false);
+                                        return;
+                                    }
+
+                                    processStreamMessage(message);
+                                } catch (parseError) {
+                                    console.error('Error parsing message:', parseError);
                                 }
+                            };
 
-                                if (message.type === 'error') {
-                                    setError(message.message || 'Stream error');
-                                    eventSource.close();
-                                    setIsConnected(false);
-                                    return;
-                                }
+                            eventSource.onerror = (error) => {
+                                console.error('Stream connection error:', error);
+                                setError('Connection error');
+                                setIsConnected(false);
+                            };
+                        } catch (error) {
+                            console.error('Failed to start stream:', error);
+                            setError('Failed to start stream');
+                        }
+                    };
 
-                                processStreamMessage(message);
-                            } catch (parseError) {
-                                console.error('Error parsing message:', parseError);
-                            }
-                        };
-
-                        eventSource.onerror = (error) => {
-                            console.error('Stream connection error:', error);
-                            setError('Connection error');
-                            setIsConnected(false);
-                        };
-                    } catch (error) {
-                        console.error('Failed to start stream:', error);
-                        setError('Failed to start stream');
-                    }
-                };
-
-                startStream();
+                    startStream();
+                }
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Ошибка запуска сессии');
+            } finally {
+                setIsLoading(false);
             }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Ошибка запуска сессии');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [processStreamMessage]);
+        },
+        [processStreamMessage],
+    );
 
     const stopSession = useCallback(async () => {
         if (!activeSession) return;
