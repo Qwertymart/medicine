@@ -4,7 +4,6 @@ import {NextRequest} from 'next/server';
 export async function GET(request: NextRequest) {
     try {
         const searchParams = request.nextUrl.searchParams;
-
         const deviceIdsParam = searchParams.get('device_id');
 
         const streamRequest: {deviceIds: string[]; dataTypes: string[]} = {
@@ -12,10 +11,10 @@ export async function GET(request: NextRequest) {
             dataTypes: ['fetal_heart_rate', 'uterine_contractions'],
         };
 
-        if (streamRequest.deviceIds.length === 0 || streamRequest.dataTypes.length === 0) {
+        if (streamRequest.deviceIds.length === 0) {
             return new Response(
                 JSON.stringify({
-                    error: 'Missing required parameters: deviceIds and dataTypes are required',
+                    error: 'Missing required parameter: device_id',
                 }),
                 {
                     status: 400,
@@ -28,13 +27,45 @@ export async function GET(request: NextRequest) {
 
         const readableStream = new ReadableStream({
             async start(controller) {
+                let grpcStream: any = null;
+                let isStreamActive = true;
+
+                const sendHeartbeat = () => {
+                    if (isStreamActive) {
+                        try {
+                            const heartbeatData = JSON.stringify({
+                                type: 'heartbeat',
+                                timestamp: new Date().toISOString(),
+                                message: 'Stream connected, waiting for data...',
+                            });
+                            controller.enqueue(encoder.encode(`data: ${heartbeatData}\n\n`));
+                        } catch (error) {
+                            console.error('Error sending heartbeat:', error);
+                        }
+                    }
+                };
+
+                const heartbeatInterval = setInterval(sendHeartbeat, 300000);
+
                 try {
-                    const grpcStream = serverClient.streamCtgData(streamRequest);
+                    console.log('Starting gRPC stream for devices:', streamRequest.deviceIds);
+
+                    grpcStream = serverClient.streamCtgData(streamRequest);
+
+                    const initMessage = JSON.stringify({
+                        type: 'connected',
+                        timestamp: new Date().toISOString(),
+                        deviceIds: streamRequest.deviceIds,
+                        message: 'Successfully connected to CTG data stream',
+                    });
+                    controller.enqueue(encoder.encode(`data: ${initMessage}\n\n`));
 
                     grpcStream.on('data', (chunk: any) => {
                         try {
+                            console.log('Received data chunk:', chunk);
                             const data = JSON.stringify({
                                 timestamp: new Date().toISOString(),
+                                type: 'data',
                                 data: chunk,
                             });
                             controller.enqueue(encoder.encode(`data: ${data}\n\n`));
@@ -44,31 +75,50 @@ export async function GET(request: NextRequest) {
                     });
 
                     grpcStream.on('end', () => {
-                        console.log('gRPC stream ended');
-                        controller.enqueue(encoder.encode('data: {"type": "end"}\n\n'));
+                        console.log('gRPC stream ended by server');
+                        clearInterval(heartbeatInterval);
+                        isStreamActive = false;
+                        const endMessage = JSON.stringify({
+                            type: 'end',
+                            timestamp: new Date().toISOString(),
+                            message: 'Stream ended by server',
+                        });
+                        controller.enqueue(encoder.encode(`data: ${endMessage}\n\n`));
                         controller.close();
                     });
 
                     grpcStream.on('error', (error: any) => {
                         console.error('gRPC stream error:', error);
+                        clearInterval(heartbeatInterval);
+                        isStreamActive = false;
                         const errorData = JSON.stringify({
                             type: 'error',
-                            message: error.message,
+                            timestamp: new Date().toISOString(),
+                            message: error.message || 'Stream connection error',
+                            code: error.code || 'UNKNOWN',
                         });
                         controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
                         controller.close();
                     });
 
                     request.signal.addEventListener('abort', () => {
-                        console.log('Client disconnected');
-                        grpcStream.cancel();
+                        console.log('Client disconnected, closing gRPC stream');
+                        clearInterval(heartbeatInterval);
+                        isStreamActive = false;
+                        if (grpcStream) {
+                            grpcStream.cancel();
+                        }
                         controller.close();
                     });
                 } catch (error) {
                     console.error('Error creating gRPC stream:', error);
+                    clearInterval(heartbeatInterval);
+                    isStreamActive = false;
                     const errorData = JSON.stringify({
                         type: 'error',
+                        timestamp: new Date().toISOString(),
                         message: 'Failed to create stream connection',
+                        error: error instanceof Error ? error.message : 'Unknown error',
                     });
                     controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
                     controller.close();
@@ -87,6 +137,8 @@ export async function GET(request: NextRequest) {
                 Connection: 'keep-alive',
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                'X-Accel-Buffering': 'no',
+                'Transfer-Encoding': 'chunked',
             },
         });
     } catch (error) {
@@ -109,7 +161,7 @@ export async function OPTIONS() {
         headers: {
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Headers': 'Content-Type, Cache-Control',
         },
     });
 }
