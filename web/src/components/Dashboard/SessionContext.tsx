@@ -144,23 +144,61 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                                 try {
                                     const message: StreamMessage = JSON.parse(event.data);
 
-                                    if (message.type === 'end') {
-                                        console.log('Stream ended by server');
-                                        eventSource.close();
-                                        setIsConnected(false);
-                                        return;
-                                    }
+                                    switch (message.type) {
+                                        case 'connected':
+                                            console.log(
+                                                'Successfully connected to stream for devices:',
+                                                message.data?.device_id,
+                                            );
+                                            setIsConnected(true);
+                                            setError(null);
+                                            break;
 
-                                    if (message.type === 'error') {
-                                        setError(message.message || 'Stream error');
-                                        eventSource.close();
-                                        setIsConnected(false);
-                                        return;
-                                    }
+                                        case 'heartbeat':
+                                            break;
 
-                                    processStreamMessage(message);
+                                        case 'data':
+                                            processStreamMessage(message);
+                                            setError(null);
+                                            break;
+
+                                        case 'no_data':
+                                            console.log(
+                                                'No data received from devices:',
+                                                message.message,
+                                            );
+                                            eventSource.close();
+                                            setIsConnected(false);
+                                            break;
+
+                                        case 'end':
+                                            console.log('Stream ended by server');
+                                            eventSource.close();
+                                            setIsConnected(false);
+                                            break;
+
+                                        case 'error':
+                                            console.error('Stream error:', message.message);
+                                            setError(message.message || 'Stream error occurred');
+                                            eventSource.close();
+                                            setIsConnected(false);
+                                            break;
+
+                                        default:
+                                            console.warn(
+                                                'Unknown message type:',
+                                                message.type,
+                                                message,
+                                            );
+                                            break;
+                                    }
                                 } catch (parseError) {
-                                    console.error('Error parsing message:', parseError);
+                                    console.error(
+                                        'Error parsing message:',
+                                        parseError,
+                                        'Raw event data:',
+                                        event.data,
+                                    );
                                 }
                             };
 
