@@ -28,7 +28,7 @@ const FetalHeartRateWidget = () => {
                     <Text variant="body-2">Card ID: {activeSession.card_id}</Text>
                 </Card>
             )}
-            <Graphs dataType="fetalHeartRate" title="ЧСС плода (уд/мин)" color="#6c59c2" />
+            <Graphs dataType="fetal_heart_rate" title="ЧСС плода (уд/мин)" color="#6c59c2" />
         </div>
     );
 };
@@ -61,7 +61,7 @@ const UterineContractionsWidget = () => {
                 Сокращения матки
             </Text>
 
-            <Graphs dataType="uterineContractions" title="Сокращения матки" color="#ff2d87" />
+            <Graphs dataType="uterine_contractions" title="Сокращения матки" color="#ff2d87" />
 
             {stats && (
                 <Card view="filled" style={{padding: '10px', marginTop: '10px'}}>

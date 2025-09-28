@@ -87,7 +87,7 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                     ...message.data,
                 };
 
-                const updatedData = [...prevData, newDataPoint].slice(-1000);
+                const updatedData = [...prevData, newDataPoint]; //.slice(-10000);
                 return updatedData;
             });
         }
