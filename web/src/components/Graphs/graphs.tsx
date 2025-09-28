@@ -25,6 +25,10 @@ export function Graphs({dataType, title, color}: GraphsProps) {
         data: [],
     });
 
+    useEffect(() => {
+        console.log(ctgData);
+    }, [ctgData]);
+
     const graphData: YagrWidgetData = {
         data: {
             timeline: ctgData.map((point: {timestamp: string | number | Date}) =>
@@ -107,7 +111,7 @@ export function Graphs({dataType, title, color}: GraphsProps) {
             style={{
                 display: 'flex',
                 flexDirection: 'column',
-                height: 400,
+                height: 'auto',
                 gap: '15px',
             }}
         >
@@ -159,17 +163,6 @@ export function Graphs({dataType, title, color}: GraphsProps) {
             >
                 <span>
                     Статус: <strong>{isConnected ? 'Подключено' : 'Отключено'}</strong>
-                </span>
-                <span>
-                    Точек: <strong>{ctgData.length}</strong>
-                </span>
-                <span>
-                    Обновлено:{' '}
-                    <strong>
-                        {ctgData.length > 0
-                            ? new Date(ctgData[ctgData.length - 1].timestamp).toLocaleTimeString()
-                            : 'Нет данных'}
-                    </strong>
                 </span>
             </div>
         </div>
