@@ -6,66 +6,35 @@ import {Graphs} from '../Graphs';
 import block from 'bem-cn-lite';
 import {SessionProvider, useSession} from './SessionContext';
 import {SessionControl} from './SessionCtrl';
-import {Card, Text, Button, TextInput} from '@gravity-ui/uikit';
+import {Card, Text} from '@gravity-ui/uikit';
 
 const b = block('dashboard');
 
 DashKit.setSettings({
-    gridLayout: {margin: [9, 9]},
+    gridLayout: {margin: [10, 10]},
     isMobile: false,
 });
 
 const FetalHeartRateWidget = () => {
-    const {startSession, stopSession, activeSession} = useSession();
-    const [cardId, setCardId] = useState('');
-
-    const handleStartSession = () => {
-        if (cardId.trim()) {
-            startSession(cardId);
-        }
-    };
+    const {activeSession} = useSession();
 
     return (
         <div style={{padding: '10px', background: '#ffffff', height: '100%'}}>
-            <div
-                style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '10px',
-                }}
-            >
-                <Text variant="header-2">ЧСС плода</Text>
-                {!activeSession ? (
-                    <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
-                        <TextInput
-                            value={cardId}
-                            onUpdate={setCardId}
-                            placeholder="Введите card_id"
-                            size="s"
-                        />
-                        <Button 
-                            view="action" 
-                            size="s" 
-                            onClick={handleStartSession}
-                            disabled={!cardId.trim()}
-                        >
-                            Начать сессию
-                        </Button>
-                    </div>
-                ) : (
-                    <Button view="outlined-danger" size="s" onClick={stopSession}>
-                        Остановить
-                    </Button>
-                )}
-            </div>
+            <Text variant="header-2" style={{marginBottom: '10px'}}>
+                ЧСС плода
+            </Text>
+            {activeSession && (
+                <Card view="filled" style={{padding: '10px', marginBottom: '10px'}}>
+                    <Text variant="body-2">Card ID: {activeSession.card_id}</Text>
+                </Card>
+            )}
             <Graphs dataType="fetalHeartRate" title="ЧСС плода (уд/мин)" color="#6c59c2" />
         </div>
     );
 };
 
 const UterineContractionsWidget = () => {
-    const {ctgData, activeSession} = useSession();
+    const {ctgData} = useSession();
 
     const calculateStats = () => {
         if (ctgData.length === 0) return null;
@@ -91,12 +60,6 @@ const UterineContractionsWidget = () => {
             <Text variant="header-2" style={{marginBottom: '10px'}}>
                 Сокращения матки
             </Text>
-
-            {activeSession && (
-                <Card view="filled" style={{padding: '10px', marginBottom: '10px'}}>
-                    <Text variant="body-2">Card ID: {activeSession.card_id}</Text>
-                </Card>
-            )}
 
             <Graphs dataType="uterineContractions" title="Сокращения матки" color="#ff2d87" />
 
@@ -131,7 +94,7 @@ DashKit.registerPlugins(
     },
     {
         type: 'widget3',
-        defaultLayout: {w: 6, h: 4},
+        defaultLayout: {w: 16, h: 20},
         renderer: function Widget3() {
             return <div style={{padding: '10px', background: '#ffffff'}}>Третий виджет</div>;
         },
@@ -177,11 +140,11 @@ const config: DashKitProps['config'] = {
             y: 0,
         },
         {
-            h: 4,
+            h: 20,
             i: 'w3',
             w: 16,
             x: 1,
-            y: 25,
+            y: 30,
         },
     ],
     aliases: {},
@@ -216,7 +179,7 @@ export function Dashboard() {
         <SessionProvider>
             <div
                 className={b('container')}
-                style={{paddingLeft: 20, height: '100vh', width: '100vw'}}
+                style={{paddingLeft: 20, height: '150vh', width: '100vw'}}
             >
                 <SessionControl />
                 <DashKit config={config} editMode={true} />
