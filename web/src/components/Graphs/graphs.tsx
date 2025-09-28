@@ -1,6 +1,6 @@
 'use client';
 
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useState, useCallback} from 'react';
 import ChartKit, {settings} from '@gravity-ui/chartkit';
 import {YagrPlugin} from '@gravity-ui/chartkit/yagr';
 import {IndicatorPlugin} from '@gravity-ui/chartkit/indicator';
@@ -14,7 +14,7 @@ const b = block('graph');
 settings.set({plugins: [YagrPlugin, IndicatorPlugin]});
 
 interface GraphsProps {
-    dataType: 'fetalHeartRate' | 'uterineContractions';
+    dataType: 'fetal_heart_rate' | 'uterine_contractions';
     title: string;
     color: string;
 }
@@ -27,6 +27,11 @@ interface CtgDataPoint {
     time_sec: number;
 }
 
+const BASELINE_VALUES = {
+    fetal_heart_rate: 120,
+    uterine_contractions: 50,
+};
+
 export function Graphs({dataType, title, color}: GraphsProps) {
     const {ctgData, isConnected} = useSession();
     const [indicatorData, setIndicatorData] = useState<IndicatorWidgetData>({
@@ -34,20 +39,15 @@ export function Graphs({dataType, title, color}: GraphsProps) {
     });
 
     const dataTypeProto = useMemo(() => {
-        return dataType === 'fetalHeartRate' ? 'fetal_heart_rate' : 'uterine_contractions';
+        return dataType === 'fetal_heart_rate' ? 'fetal_heart_rate' : 'uterine_contractions';
     }, [dataType]);
 
     const filteredData = useMemo(() => {
+        if (!ctgData || ctgData.length === 0) return [];
+
         const filtered = (ctgData as CtgDataPoint[])
             .filter((point) => point.data_type === dataTypeProto)
             .sort((a, b) => a.timestamp - b.timestamp);
-
-        console.log(`Filtered ${dataType} data:`, {
-            total: filtered.length,
-            normal: filtered.filter((p) => p.value !== -1).length,
-            problems: filtered.filter((p) => p.value === -1).length,
-            sample: filtered.slice(-5),
-        });
 
         return filtered;
     }, [ctgData, dataTypeProto]);
@@ -57,18 +57,53 @@ export function Graphs({dataType, title, color}: GraphsProps) {
         return validPoints.length > 0 ? validPoints[validPoints.length - 1].value : null;
     }, [filteredData]);
 
+    const baselineData = useMemo(() => {
+        if (filteredData.length === 0) return [];
+        return Array(filteredData.length).fill(BASELINE_VALUES[dataType]);
+    }, [filteredData.length, dataType]);
+
     const graphData: YagrWidgetData = useMemo(() => {
-        const graphData = filteredData.map((point) => (point.value !== -1 ? point.value : null));
+        if (filteredData.length === 0) {
+            return {
+                data: {
+                    timeline: [],
+                    graphs: [],
+                },
+                libraryConfig: {
+                    title: {text: title},
+                    axes: {
+                        x: {label: 'Time', scale: 'time'},
+                        y: {
+                            label: dataType === 'fetal_heart_rate' ? 'BPM' : 'Units',
+                            range: dataType === 'fetal_heart_rate' ? [0, 200] : [0, 100],
+                        },
+                    },
+                },
+            };
+        }
+
+        const mainData = filteredData.map((point) => (point.value !== -1 ? point.value : null));
 
         return {
             data: {
                 timeline: filteredData.map((point) => point.timestamp),
                 graphs: [
                     {
-                        id: dataType,
+                        id: 'main',
                         name: title,
                         color: color,
-                        data: graphData,
+                        data: mainData,
+                        lineWidth: 2,
+                        pointSize: 0,
+                    },
+                    {
+                        id: 'baseline',
+                        name: `Baseline (${BASELINE_VALUES[dataType]})`,
+                        color: dataType === 'fetal_heart_rate' ? '#ff6b6b' : '#4ecdc4',
+                        data: baselineData,
+                        dash: [5, 5],
+                        lineWidth: 1,
+                        pointSize: 4,
                     },
                 ],
             },
@@ -88,8 +123,8 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                         scale: 'time',
                     },
                     y: {
-                        label: dataType === 'fetalHeartRate' ? 'BPM' : 'Units',
-                        range: dataType === 'fetalHeartRate' ? [0, 200] : [0, 100],
+                        label: dataType === 'fetal_heart_rate' ? 'BPM' : 'Units',
+                        range: dataType === 'fetal_heart_rate' ? [0, 200] : [0, 100],
                     },
                 },
                 tooltip: {
@@ -97,9 +132,8 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                 },
             },
         };
-    }, [filteredData, title, color, dataType]);
-
-    useEffect(() => {
+    }, [filteredData, title, color, dataType, baselineData]);
+    const updateIndicator = useCallback(() => {
         const indicator: IndicatorWidgetDataItem = {
             content: {
                 current: {
@@ -116,16 +150,12 @@ export function Graphs({dataType, title, color}: GraphsProps) {
         setIndicatorData({data: [indicator]});
     }, [lastValidValue, title, color]);
 
-    // const dataStats = useMemo(() => {
-    //     const total = filteredData.length;
-    //     const valid = filteredData.filter((p) => p.value !== -1).length;
-    //     const problems = filteredData.filter((p) => p.value === -1).length;
+    useEffect(() => {
+        updateIndicator();
+    }, [updateIndicator]);
 
-    //     return {total, valid, problems};
-    // }, [filteredData]);
-
-    if (!isConnected && ctgData.length === 0) {
-        return (
+    const renderLoadingState = useCallback(
+        () => (
             <div
                 className={b('container')}
                 style={{
@@ -145,7 +175,12 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                     Запустите сессию для начала мониторинга
                 </div>
             </div>
-        );
+        ),
+        [],
+    );
+
+    if (!isConnected && ctgData.length === 0) {
+        return renderLoadingState();
     }
 
     return (
@@ -169,18 +204,21 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                     minHeight: '300px',
                 }}
             >
-                <ChartKit type="yagr" data={graphData} />
+                <ChartKit
+                    type="yagr"
+                    data={graphData}
+                    key={`chart-${dataType}-${filteredData.length}`}
+                />
             </div>
 
             <div
                 style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
+                    gridTemplateColumns: '1fr',
                     gap: '15px',
                     height: '100px',
                 }}
             >
-                {/* Индикатор */}
                 <div
                     style={{
                         border: '1px solid #e0e0e0',
@@ -192,31 +230,6 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                 >
                     <ChartKit type="indicator" data={indicatorData} />
                 </div>
-            </div>
-
-            <div
-                style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '12px',
-                    background: isConnected ? '#e8f5e8' : '#fff3cd',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    border: `1px solid ${isConnected ? '#d4edda' : '#ffeaa7'}`,
-                }}
-            >
-                <span>
-                    Status: <strong>{isConnected ? 'Connected' : 'Disconnected'}</strong>
-                </span>
-                <span style={{color: '#666'}}>
-                    Last update:{' '}
-                    {filteredData.length > 0
-                        ? new Date(
-                              filteredData[filteredData.length - 1].timestamp,
-                          ).toLocaleTimeString()
-                        : 'No data'}
-                </span>
             </div>
         </div>
     );
