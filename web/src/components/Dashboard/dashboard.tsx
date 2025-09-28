@@ -179,10 +179,10 @@ export function Dashboard() {
         <SessionProvider>
             <div
                 className={b('container')}
-                style={{paddingLeft: 20, height: '150vh', width: '100vw'}}
+                style={{paddingLeft: 20, height: 'auto', width: '100vw'}}
             >
                 <SessionControl />
-                <DashKit config={config} editMode={true} />
+                <DashKit config={config} editMode={false} />
             </div>
         </SessionProvider>
     );

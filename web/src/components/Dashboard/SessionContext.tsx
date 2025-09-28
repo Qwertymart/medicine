@@ -1,6 +1,14 @@
 'use client';
 
-import React, {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react';
+import React, {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+    useMemo,
+} from 'react';
 
 interface SessionResponse {
     session_id: string;
@@ -24,7 +32,6 @@ interface StreamMessage {
     message?: string;
 }
 
-// Интерфейсы для данных КТГ
 interface CTGDataPoint {
     value: any;
     data_type: string;
@@ -53,6 +60,8 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
+const MAX_DATA_POINTS = 1000000;
+
 export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
     const [activeSession, setActiveSession] = useState<SessionResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -60,9 +69,11 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
     const [isConnected, setIsConnected] = useState(false);
     const [ctgData, setCtgData] = useState<CTGDataPoint[]>([]);
     const eventSourceRef = useRef<EventSource | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const checkActiveSession = useCallback(async () => {
         try {
+            setIsLoading(true);
             const response = await fetch(`${API_BASE}/sessions/active`);
             if (response.ok) {
                 const data = await response.json();
@@ -73,7 +84,9 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                 }
             }
         } catch (error) {
-            setError(error instanceof Error ? error.message : 'Ошибка получения активной сессии');
+            console.error('Error checking active session:', error);
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
@@ -87,11 +100,114 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                     ...message.data,
                 };
 
-                const updatedData = [...prevData, newDataPoint]; //.slice(-10000);
+                const updatedData = [...prevData, newDataPoint];
+                if (updatedData.length > MAX_DATA_POINTS) {
+                    return updatedData.slice(-MAX_DATA_POINTS);
+                }
                 return updatedData;
             });
         }
     }, []);
+
+    const cleanupEventSource = useCallback(() => {
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+        }
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+        }
+        setIsConnected(false);
+    }, []);
+
+    const startEventStream = useCallback(
+        (cardId: string) => {
+            cleanupEventSource();
+
+            const params = new URLSearchParams({
+                device_id: process.env.NEXT_PUBLIC_DEVICE_ID || '',
+                card_id: cardId.trim(),
+            });
+
+            try {
+                setError(null);
+                const eventSource = new EventSource(`/api/stream-sse?${params}`);
+                eventSourceRef.current = eventSource;
+
+                eventSource.onopen = () => {
+                    console.log('CTG Stream connected');
+                    setIsConnected(true);
+                };
+
+                eventSource.onmessage = (event) => {
+                    try {
+                        const message: StreamMessage = JSON.parse(event.data);
+
+                        switch (message.type) {
+                            case 'connected':
+                                console.log('Successfully connected to stream:', message);
+                                setIsConnected(true);
+                                setError(null);
+                                break;
+
+                            case 'heartbeat':
+                                setIsConnected(true);
+                                break;
+
+                            case 'data':
+                                processStreamMessage(message);
+                                setError(null);
+                                break;
+
+                            case 'no_data':
+                                console.log('No data received from devices:', message.message);
+                                cleanupEventSource();
+                                break;
+
+                            case 'end':
+                                console.log('Stream ended by server');
+                                cleanupEventSource();
+                                break;
+
+                            case 'error':
+                                console.error('Stream error:', message.message);
+                                setError(message.message || 'Stream error occurred');
+                                cleanupEventSource();
+                                break;
+
+                            default:
+                                console.warn('Unknown message type:', message.type, message);
+                                break;
+                        }
+                    } catch (parseError) {
+                        console.error(
+                            'Error parsing message:',
+                            parseError,
+                            'Raw event data:',
+                            event.data,
+                        );
+                    }
+                };
+
+                eventSource.onerror = (error) => {
+                    console.error('Stream connection error:', error);
+                    setError('Connection error - attempting reconnect...');
+                    setIsConnected(false);
+
+                    reconnectTimeoutRef.current = setTimeout(() => {
+                        if (activeSession) {
+                            startEventStream(activeSession.card_id);
+                        }
+                    }, 5000);
+                };
+            } catch (error) {
+                console.error('Failed to start stream:', error);
+                setError('Failed to start stream');
+            }
+        },
+        [activeSession, cleanupEventSource, processStreamMessage],
+    );
 
     const startSession = useCallback(
         async (cardId: string) => {
@@ -125,105 +241,16 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                 if (result.data) {
                     setActiveSession(result.data);
                     localStorage.setItem('ctg_session', JSON.stringify(result.data));
-
-                    const startStream = () => {
-                        const params = new URLSearchParams({
-                            device_id: process.env.NEXT_PUBLIC_DEVICE_ID || '',
-                            card_id: cardId.trim(),
-                        });
-
-                        try {
-                            setError(null);
-                            const eventSource = new EventSource(`/api/stream-sse?${params}`);
-                            eventSourceRef.current = eventSource;
-
-                            eventSource.onopen = () => {
-                                console.log('CTG Stream connected');
-                                setIsConnected(true);
-                            };
-
-                            eventSource.onmessage = (event) => {
-                                try {
-                                    const message: StreamMessage = JSON.parse(event.data);
-
-                                    switch (message.type) {
-                                        case 'connected':
-                                            console.log(
-                                                'Successfully connected to stream:',
-                                                message,
-                                            );
-                                            setIsConnected(true);
-                                            setError(null);
-                                            break;
-
-                                        case 'heartbeat':
-                                            break;
-
-                                        case 'data':
-                                            processStreamMessage(message);
-                                            setError(null);
-                                            break;
-
-                                        case 'no_data':
-                                            console.log(
-                                                'No data received from devices:',
-                                                message.message,
-                                            );
-                                            eventSource.close();
-                                            setIsConnected(false);
-                                            break;
-
-                                        case 'end':
-                                            console.log('Stream ended by server');
-                                            eventSource.close();
-                                            setIsConnected(false);
-                                            break;
-
-                                        case 'error':
-                                            console.error('Stream error:', message.message);
-                                            setError(message.message || 'Stream error occurred');
-                                            eventSource.close();
-                                            setIsConnected(false);
-                                            break;
-
-                                        default:
-                                            console.warn(
-                                                'Unknown message type:',
-                                                message.type,
-                                                message,
-                                            );
-                                            break;
-                                    }
-                                } catch (parseError) {
-                                    console.error(
-                                        'Error parsing message:',
-                                        parseError,
-                                        'Raw event data:',
-                                        event.data,
-                                    );
-                                }
-                            };
-
-                            eventSource.onerror = (error) => {
-                                console.error('Stream connection error:', error);
-                                setError('Connection error');
-                                setIsConnected(false);
-                            };
-                        } catch (error) {
-                            console.error('Failed to start stream:', error);
-                            setError('Failed to start stream');
-                        }
-                    };
-
-                    startStream();
+                    startEventStream(cardId);
                 }
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Ошибка запуска сессии');
+                cleanupEventSource();
             } finally {
                 setIsLoading(false);
             }
         },
-        [processStreamMessage],
+        [cleanupEventSource, startEventStream],
     );
 
     const stopSession = useCallback(async () => {
@@ -243,59 +270,76 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
             }
 
             setActiveSession(null);
-
-            if (eventSourceRef.current) {
-                eventSourceRef.current.close();
-                eventSourceRef.current = null;
-            }
-            setIsConnected(false);
+            cleanupEventSource();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Ошибка остановки сессии');
         } finally {
             setIsLoading(false);
         }
-    }, [activeSession]);
+    }, [activeSession, cleanupEventSource]);
 
     const clearData = useCallback(() => {
         setCtgData([]);
     }, []);
 
     useEffect(() => {
+        const savedSession = localStorage.getItem('ctg_session');
+        if (savedSession) {
+            try {
+                const session = JSON.parse(savedSession);
+                setActiveSession(session);
+            } catch (e) {
+                console.error('Error parsing saved session:', e);
+                localStorage.removeItem('ctg_session');
+            }
+        }
+
         checkActiveSession();
     }, [checkActiveSession]);
 
     useEffect(() => {
         return () => {
-            if (eventSourceRef.current) {
-                eventSourceRef.current.close();
-            }
+            cleanupEventSource();
         };
-    }, []);
+    }, [cleanupEventSource]);
 
-    const refresh = useCallback(() => checkActiveSession(), [checkActiveSession]);
+    const refresh = useCallback(() => {
+        checkActiveSession();
+    }, [checkActiveSession]);
+
     const clearError = useCallback(() => setError(null), []);
 
-    return (
-        <SessionContext.Provider
-            value={{
-                activeSession,
-                cardId: activeSession?.card_id ?? null,
-                deviceId: activeSession?.device_id ?? null,
-                sessionId: activeSession?.session_id ?? null,
-                isLoading,
-                error,
-                isConnected,
-                ctgData,
-                startSession,
-                stopSession,
-                refresh,
-                clearError,
-                clearData,
-            }}
-        >
-            {children}
-        </SessionContext.Provider>
+    const contextValue = useMemo(
+        () => ({
+            activeSession,
+            cardId: activeSession?.card_id ?? null,
+            deviceId: activeSession?.device_id ?? null,
+            sessionId: activeSession?.session_id ?? null,
+            isLoading,
+            error,
+            isConnected,
+            ctgData,
+            startSession,
+            stopSession,
+            refresh,
+            clearError,
+            clearData,
+        }),
+        [
+            activeSession,
+            isLoading,
+            error,
+            isConnected,
+            ctgData,
+            startSession,
+            stopSession,
+            refresh,
+            clearError,
+            clearData,
+        ],
     );
+
+    return <SessionContext.Provider value={contextValue}>{children}</SessionContext.Provider>;
 };
 
 export function useSession() {
