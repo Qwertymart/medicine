@@ -49,20 +49,39 @@ export async function GET(request: NextRequest) {
 
                 try {
                     console.log('Starting gRPC stream for devices:', streamRequest.deviceIds);
+                    console.log('Stream request payload:', JSON.stringify(streamRequest, null, 2));
 
                     grpcStream = serverClient.streamCtgData(streamRequest);
 
-                    const initMessage = JSON.stringify({
-                        type: 'connected',
-                        timestamp: new Date().toISOString(),
-                        deviceIds: streamRequest.deviceIds,
-                        message: 'Successfully connected to CTG data stream',
-                    });
-                    controller.enqueue(encoder.encode(`data: ${initMessage}\n\n`));
+                    console.log('gRPC stream created, waiting for data...');
+
+                    const dataTimeout = setTimeout(() => {
+                        console.log('No data received for 30 seconds, possible connection issue');
+                        const timeoutMessage = JSON.stringify({
+                            type: 'warning',
+                            timestamp: new Date().toISOString(),
+                            message: 'No data received from devices - connection may be stalled',
+                        });
+                        controller.enqueue(encoder.encode(`data: ${timeoutMessage}\n\n`));
+                    }, 30000);
 
                     grpcStream.on('data', (chunk: any) => {
                         try {
+                            clearTimeout(dataTimeout);
+
                             console.log('Received data chunk:', chunk);
+                            console.log('Chunk type:', typeof chunk);
+                            console.log('Chunk keys:', chunk ? Object.keys(chunk) : 'null');
+
+                            if (chunk && typeof chunk === 'object') {
+                                console.log('Data content:', {
+                                    device_id: chunk.device_id,
+                                    data_type: chunk.data_type,
+                                    value: chunk.value,
+                                    time_sec: chunk.time_sec,
+                                });
+                            }
+
                             const data = JSON.stringify({
                                 timestamp: new Date().toISOString(),
                                 type: 'data',
@@ -74,23 +93,25 @@ export async function GET(request: NextRequest) {
                         }
                     });
 
-                    grpcStream.on('end', () => {
-                        console.log('gRPC stream ended by server');
-                        clearInterval(heartbeatInterval);
-                        isStreamActive = false;
-                        const endMessage = JSON.stringify({
-                            type: 'end',
-                            timestamp: new Date().toISOString(),
-                            message: 'Stream ended by server',
-                        });
-                        controller.enqueue(encoder.encode(`data: ${endMessage}\n\n`));
-                        controller.close();
+                    grpcStream.on('status', (status: any) => {
+                        console.log('gRPC stream status:', status);
+                    });
+
+                    grpcStream.on('metadata', (metadata: any) => {
+                        console.log('gRPC stream metadata:', metadata);
                     });
 
                     grpcStream.on('error', (error: any) => {
                         console.error('gRPC stream error:', error);
+                        console.error('Error details:', {
+                            code: error.code,
+                            details: error.details,
+                            message: error.message,
+                        });
+                        clearTimeout(dataTimeout);
                         clearInterval(heartbeatInterval);
                         isStreamActive = false;
+
                         const errorData = JSON.stringify({
                             type: 'error',
                             timestamp: new Date().toISOString(),

@@ -149,8 +149,8 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                                     switch (message.type) {
                                         case 'connected':
                                             console.log(
-                                                'Successfully connected to stream for devices:',
-                                                message.data?.device_id,
+                                                'Successfully connected to stream:',
+                                                message,
                                             );
                                             setIsConnected(true);
                                             setError(null);
