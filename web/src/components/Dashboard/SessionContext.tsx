@@ -26,6 +26,8 @@ interface StreamMessage {
 
 // Интерфейсы для данных КТГ
 interface CTGDataPoint {
+    value: any;
+    data_type: string;
     timestamp: number;
     fetalHeartRate?: number;
     uterineContractions?: number;

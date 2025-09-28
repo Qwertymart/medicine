@@ -39,7 +39,9 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                     id: dataType,
                     name: title,
                     color: color,
-                    data: ctgData.map((point: {[x: string]: any}) => point[dataType] || null),
+                    data: ctgData
+                        .filter((point) => point.data_type === dataType)
+                        .map((point) => (point.value !== (-1 || undefined) ? point.value : null)),
                 },
             ],
         },
