@@ -115,12 +115,12 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                 localStorage.setItem('ctg_session', JSON.stringify(result.data));
 
                 const startStream = () => {
-                    const deviceIds = [result.data.device_id];
-                    const dataTypes = ['fetal_heart_rate', 'uterine_contractions'];
+                    // const deviceIds = [result.data.device_id];
+                    // const dataTypes = ['fetal_heart_rate', 'uterine_contractions'];
 
                     const params = new URLSearchParams({
-                        deviceIds: deviceIds.join(','),
-                        dataTypes: dataTypes.join(','),
+                        device_Id: result.data.device_id,
+                        dataTypes: process.env.NEXT_PUBLIC_CARD_ID || "",
                     });
 
                     try {
