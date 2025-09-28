@@ -7,70 +7,99 @@ import {IndicatorPlugin} from '@gravity-ui/chartkit/indicator';
 import type {YagrWidgetData} from '@gravity-ui/chartkit/yagr';
 import type {IndicatorWidgetData, IndicatorWidgetDataItem} from '@gravity-ui/chartkit/indicator';
 import block from 'bem-cn-lite';
-
-import '@gravity-ui/uikit/styles/styles.scss';
+import {useSession} from '@/components/Dashboard/SessionContext';
 
 const b = block('graph');
 
 settings.set({plugins: [YagrPlugin, IndicatorPlugin]});
 
-const graphData: YagrWidgetData = {
-    data: {
-        timeline: [
-            1636838612441, 1636925012441, 1637011412441, 1637097812441, 1637184212441,
-            1637270612441, 1637357012441, 1637443412441, 1637529812441, 1637616212441,
-        ],
-        graphs: [
-            {
-                id: '0',
-                name: 'Serie 1',
-                color: '#6c59c2',
-                data: [25, 52, 89, 72, 39, 49, 82, 59, 36, 5],
-            },
-            // {
-            //     id: '1',
-            //     name: 'Serie 2',
-            //     color: '#6e8188',
-            //     data: [37, 6, 51, 10, 65, 35, 72, 0, 94, 54],
-            // },
-        ],
-    },
-    libraryConfig: {
-        chart: {
-            series: {
-                type: 'line',
-            },
-        },
-        title: {
-            text: 'line: random 10 pts',
-        },
-    },
-};
+interface GraphsProps {
+    dataType: 'fetalHeartRate' | 'uterineContractions';
+    title: string;
+    color: string;
+}
 
-export function Graphs() {
+export function Graphs({dataType, title, color}: GraphsProps) {
+    const {ctgData, isConnected} = useSession();
     const [indicatorData, setIndicatorData] = useState<IndicatorWidgetData>({
         data: [],
     });
 
-    useEffect(() => {
-        const indicators: IndicatorWidgetDataItem[] = graphData.data.graphs.map((graph) => {
-            const lastValue = graph.data[graph.data.length - 1] ?? 0;
+    const graphData: YagrWidgetData = {
+        data: {
+            timeline: ctgData.map((point: {timestamp: string | number | Date}) =>
+                new Date(point.timestamp).getTime(),
+            ),
+            graphs: [
+                {
+                    id: dataType,
+                    name: title,
+                    color: color,
+                    data: ctgData.map((point: {[x: string]: any}) => point[dataType] || null),
+                },
+            ],
+        },
+        libraryConfig: {
+            chart: {
+                series: {
+                    type: 'line',
+                },
+            },
+            title: {
+                text: title,
+            },
+            axes: {
+                x: {
+                    label: 'Время',
+                },
+                y: {
+                    label: dataType === 'fetalHeartRate' ? 'уд/мин' : 'ед.',
+                },
+            },
+        },
+    };
 
-            return {
+    useEffect(() => {
+        if (ctgData.length > 0) {
+            const lastPoint = ctgData[ctgData.length - 1];
+            const value = lastPoint[dataType] || 0;
+
+            const indicator: IndicatorWidgetDataItem = {
                 content: {
                     current: {
-                        value: Number(lastValue),
+                        value: value,
                     } as {value: string | number} & Record<string, unknown>,
                 },
-                color: graph.color || '#000000',
-                title: graph.name || 'Unnamed',
+                color: color,
+                title: title,
                 size: 'm',
                 nowrap: true,
             };
-        });
 
-        setIndicatorData({data: indicators});
-    }, []);
+            setIndicatorData({data: [indicator]});
+        }
+    }, [ctgData, dataType, title, color]);
+
+    if (!isConnected && ctgData.length === 0) {
+        return (
+            <div
+                className={b('container')}
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: 400,
+                    gap: '20px',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+            >
+                <div>Ожидание данных КТГ...</div>
+                <div style={{fontSize: '14px', color: '#666'}}>
+                    Запустите сессию для начала мониторинга
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -78,36 +107,70 @@ export function Graphs() {
             style={{
                 display: 'flex',
                 flexDirection: 'column',
-                height: 600,
-                gap: '20px',
+                height: 400,
+                gap: '15px',
             }}
         >
-            <div className={b('chart')} style={{flex: 1}}>
+            <div
+                className={b('chart')}
+                style={{
+                    flex: 1,
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    background: 'white',
+                }}
+            >
                 <ChartKit type="yagr" data={graphData} />
             </div>
 
             <div
                 className={b('indicators')}
                 style={{
-                    display: 'flex',
-                    gap: '16px',
-                    height: '120px',
+                    height: '100px',
                 }}
             >
                 {indicatorData.data?.map((indicator, index) => (
                     <div
                         key={index}
                         style={{
-                            flex: 1,
                             border: '1px solid #e0e0e0',
                             borderRadius: '8px',
                             padding: '12px',
                             background: 'white',
+                            height: '100%',
                         }}
                     >
                         <ChartKit type="indicator" data={{data: [indicator]}} />
                     </div>
                 ))}
+            </div>
+
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px',
+                    background: '#f5f5f5',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                }}
+            >
+                <span>
+                    Статус: <strong>{isConnected ? 'Подключено' : 'Отключено'}</strong>
+                </span>
+                <span>
+                    Точек: <strong>{ctgData.length}</strong>
+                </span>
+                <span>
+                    Обновлено:{' '}
+                    <strong>
+                        {ctgData.length > 0
+                            ? new Date(ctgData[ctgData.length - 1].timestamp).toLocaleTimeString()
+                            : 'Нет данных'}
+                    </strong>
+                </span>
             </div>
         </div>
     );

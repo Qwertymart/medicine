@@ -11,9 +11,24 @@ interface SessionResponse {
     end_time?: string;
     duration: number;
 }
+
 interface ApiError {
     error: string;
     details?: string;
+}
+
+interface StreamMessage {
+    timestamp: string;
+    data: any;
+    type?: string;
+    message?: string;
+}
+
+// Интерфейсы для данных КТГ
+interface CTGDataPoint {
+    timestamp: number;
+    fetalHeartRate?: number;
+    uterineContractions?: number;
 }
 
 interface SessionContextValue {
@@ -23,17 +38,13 @@ interface SessionContextValue {
     sessionId: string | null;
     isLoading: boolean;
     error: string | null;
+    isConnected: boolean;
+    ctgData: CTGDataPoint[];
     startSession: () => Promise<void>;
     stopSession: () => Promise<void>;
     refresh: () => void;
     clearError: () => void;
-}
-
-interface StreamMessage {
-    timestamp: string;
-    data: any;
-    type?: string;
-    message?: string;
+    clearData: () => void;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1';
@@ -44,8 +55,8 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
     const [activeSession, setActiveSession] = useState<SessionResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [messages, setMessages] = useState<StreamMessage[]>([]);
     const [isConnected, setIsConnected] = useState(false);
+    const [ctgData, setCtgData] = useState<CTGDataPoint[]>([]);
     const eventSourceRef = useRef<EventSource | null>(null);
 
     const checkActiveSession = useCallback(async () => {
@@ -64,9 +75,27 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
         }
     }, []);
 
+    const processStreamMessage = useCallback((message: StreamMessage) => {
+        if (message.data && message.timestamp) {
+            const timestamp = new Date(message.timestamp).getTime();
+
+            setCtgData((prevData) => {
+                const newDataPoint: CTGDataPoint = {
+                    timestamp,
+                    ...message.data,
+                };
+
+                const updatedData = [...prevData, newDataPoint].slice(-1000);
+                return updatedData;
+            });
+        }
+    }, []);
+
     const startSession = useCallback(async () => {
         setIsLoading(true);
         setError(null);
+        setCtgData([]);
+
         try {
             const response = await fetch(`${API_BASE}/sessions/start`, {
                 method: 'POST',
@@ -74,14 +103,17 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                     'Content-Type': 'application/json',
                 },
             });
+
             if (!response.ok) {
                 const errorData: ApiError = await response.json();
                 throw new Error(errorData.details || errorData.error);
             }
+
             const result = await response.json();
             if (result.data) {
                 setActiveSession(result.data);
                 localStorage.setItem('ctg_session', JSON.stringify(result.data));
+
                 const startStream = () => {
                     const deviceIds = [result.data.device_id];
                     const dataTypes = ['fetal_heart_rate', 'uterine_contractions'];
@@ -119,7 +151,7 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                                     return;
                                 }
 
-                                setMessages((prev) => [...prev, message]);
+                                processStreamMessage(message);
                             } catch (parseError) {
                                 console.error('Error parsing message:', parseError);
                             }
@@ -143,36 +175,41 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [processStreamMessage]);
 
     const stopSession = useCallback(async () => {
         if (!activeSession) return;
+
         setIsLoading(true);
         setError(null);
+
         try {
             const response = await fetch(`${API_BASE}/sessions/stop/${activeSession.session_id}`, {
                 method: 'POST',
             });
+
             if (!response.ok) {
                 const error: ApiError = await response.json();
                 throw new Error(error.details || error.error);
             }
-            setActiveSession(null);
-            const stopStream = () => {
-                if (eventSourceRef.current) {
-                    eventSourceRef.current.close();
-                    eventSourceRef.current = null;
-                }
-                setIsConnected(false);
-            };
 
-            stopStream();
+            setActiveSession(null);
+
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+                eventSourceRef.current = null;
+            }
+            setIsConnected(false);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Ошибка остановки сессии');
         } finally {
             setIsLoading(false);
         }
     }, [activeSession]);
+
+    const clearData = useCallback(() => {
+        setCtgData([]);
+    }, []);
 
     useEffect(() => {
         checkActiveSession();
@@ -187,10 +224,7 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
     }, []);
 
     const refresh = useCallback(() => checkActiveSession(), [checkActiveSession]);
-
-    const clearError = useCallback(() => {
-        setError(null);
-    }, []);
+    const clearError = useCallback(() => setError(null), []);
 
     return (
         <SessionContext.Provider
@@ -199,13 +233,15 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                 cardId: activeSession?.card_id ?? null,
                 deviceId: activeSession?.device_id ?? null,
                 sessionId: activeSession?.session_id ?? null,
-                // TODO: передача данных в отрисовщик
                 isLoading,
                 error,
+                isConnected,
+                ctgData,
                 startSession,
                 stopSession,
                 refresh,
                 clearError,
+                clearData,
             }}
         >
             {children}
