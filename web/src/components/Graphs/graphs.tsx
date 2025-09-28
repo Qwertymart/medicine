@@ -27,40 +27,22 @@ interface CtgDataPoint {
     time_sec: number;
 }
 
-const BASELINE_VALUES = {
-    fetal_heart_rate: 120,
-    uterine_contractions: 50,
-};
-
 export function Graphs({dataType, title, color}: GraphsProps) {
     const {ctgData, isConnected} = useSession();
-    const [indicatorData, setIndicatorData] = useState<IndicatorWidgetData>({
-        data: [],
-    });
-
-    const dataTypeProto = useMemo(() => {
-        return dataType === 'fetal_heart_rate' ? 'fetal_heart_rate' : 'uterine_contractions';
-    }, [dataType]);
+    const [indicatorData, setIndicatorData] = useState<IndicatorWidgetData>({data: []});
 
     const filteredData = useMemo(() => {
         if (!ctgData || ctgData.length === 0) return [];
 
-        const filtered = (ctgData as CtgDataPoint[])
-            .filter((point) => point.data_type === dataTypeProto)
+        return (ctgData as CtgDataPoint[])
+            .filter((point) => point.data_type === dataType)
             .sort((a, b) => a.timestamp - b.timestamp);
-
-        return filtered;
-    }, [ctgData, dataTypeProto]);
+    }, [ctgData, dataType]);
 
     const lastValidValue = useMemo(() => {
         const validPoints = filteredData.filter((point) => point.value !== -1);
         return validPoints.length > 0 ? validPoints[validPoints.length - 1].value : null;
     }, [filteredData]);
-
-    const baselineData = useMemo(() => {
-        if (filteredData.length === 0) return [];
-        return Array(filteredData.length).fill(BASELINE_VALUES[dataType]);
-    }, [filteredData.length, dataType]);
 
     const graphData: YagrWidgetData = useMemo(() => {
         if (filteredData.length === 0) {
@@ -91,19 +73,10 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                     {
                         id: 'main',
                         name: title,
-                        color: color,
+                        color,
                         data: mainData,
                         lineWidth: 2,
                         pointSize: 0,
-                    },
-                    {
-                        id: 'baseline',
-                        name: `Baseline (${BASELINE_VALUES[dataType]})`,
-                        color: dataType === 'fetal_heart_rate' ? '#ff6b6b' : '#4ecdc4',
-                        data: baselineData,
-                        dash: [5, 5],
-                        lineWidth: 1,
-                        pointSize: 4,
                     },
                 ],
             },
@@ -118,21 +91,17 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                     text: title,
                 },
                 axes: {
-                    x: {
-                        label: 'Time',
-                        scale: 'time',
-                    },
+                    x: {label: 'Time', scale: 'time'},
                     y: {
                         label: dataType === 'fetal_heart_rate' ? 'BPM' : 'Units',
                         range: dataType === 'fetal_heart_rate' ? [0, 200] : [0, 100],
                     },
                 },
-                tooltip: {
-                    show: true,
-                },
+                tooltip: {show: true},
             },
         };
-    }, [filteredData, title, color, dataType, baselineData]);
+    }, [filteredData, title, color, dataType]);
+
     const updateIndicator = useCallback(() => {
         const indicator: IndicatorWidgetDataItem = {
             content: {
@@ -142,7 +111,7 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                 },
             },
             color: lastValidValue !== null ? color : '#ff4444',
-            title: title,
+            title,
             size: 'm',
             nowrap: true,
         };
@@ -170,8 +139,8 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                     border: '1px solid #e0e0e0',
                 }}
             >
-                <div style={{fontSize: '16px', fontWeight: '500'}}>Ожидание данных КТГ...</div>
-                <div style={{fontSize: '14px', color: '#666'}}>
+                <div style={{fontSize: 16, fontWeight: 500}}>Ожидание данных КТГ...</div>
+                <div style={{fontSize: 14, color: '#666'}}>
                     Запустите сессию для начала мониторинга
                 </div>
             </div>
@@ -190,7 +159,7 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                 display: 'flex',
                 flexDirection: 'column',
                 height: 'auto',
-                gap: '15px',
+                gap: 15,
             }}
         >
             <div
@@ -198,32 +167,28 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                 style={{
                     flex: 1,
                     border: '1px solid #e0e0e0',
-                    borderRadius: '8px',
-                    padding: '12px',
+                    borderRadius: 8,
+                    padding: 12,
                     background: 'white',
-                    minHeight: '300px',
+                    minHeight: 300,
                 }}
             >
-                <ChartKit
-                    type="yagr"
-                    data={graphData}
-                    key={`chart-${dataType}-${filteredData.length}`}
-                />
+                <ChartKit type="yagr" data={graphData} />
             </div>
 
             <div
                 style={{
                     display: 'grid',
                     gridTemplateColumns: '1fr',
-                    gap: '15px',
-                    height: '100px',
+                    gap: 15,
+                    height: 100,
                 }}
             >
                 <div
                     style={{
                         border: '1px solid #e0e0e0',
-                        borderRadius: '8px',
-                        padding: '12px',
+                        borderRadius: 8,
+                        padding: 12,
                         background: 'white',
                         height: '100%',
                     }}
