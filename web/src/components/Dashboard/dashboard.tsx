@@ -45,7 +45,7 @@ const FetalHeartRateWidget = () => {
 };
 
 const UterineContractionsWidget = () => {
-    const {ctgData, isConnected, activeSession} = useSession();
+    const {ctgData} = useSession();
 
     const calculateStats = () => {
         if (ctgData.length === 0) return null;

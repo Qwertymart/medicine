@@ -33,11 +33,9 @@ let ctgStreamService: any;
 
 if (protoDescriptor.CTGStreamService) {
     ctgStreamService = protoDescriptor.CTGStreamService;
-} 
-else if ((protoDescriptor as any).ctg && (protoDescriptor as any).ctg.CTGStreamService) {
+} else if ((protoDescriptor as any).ctg && (protoDescriptor as any).ctg.CTGStreamService) {
     ctgStreamService = (protoDescriptor as any).ctg.CTGStreamService;
-}
-else {
+} else {
     const findService = (obj: any, path: string = ''): any => {
         for (const key in obj) {
             const currentPath = path ? `${path}.${key}` : key;
@@ -52,13 +50,13 @@ else {
         }
         return null;
     };
-    
+
     ctgStreamService = findService(protoDescriptor);
 }
 
 if (!ctgStreamService) {
     console.error('CTGStreamService not found in proto descriptor. Available keys:');
-    console.dir(protoDescriptor, { depth: 3 });
+    console.dir(protoDescriptor, {depth: 3});
     throw new Error('CTGStreamService not found in the proto file');
 }
 
@@ -70,15 +68,16 @@ if (typeof ctgStreamService !== 'function') {
 }
 
 export const serverClient = new ctgStreamService(
-    'localhost:50051',
+    process.env.NEXT_PUBLIC_GRPC_URL || 'localhost:50051',
     grpc.credentials.createInsecure(),
 );
 
 export const createServerStream = (requestData: any) => {
     return new Promise((resolve, reject) => {
         if (typeof serverClient.streamCtgData !== 'function') {
-            const availableMethods = Object.keys(serverClient.constructor.prototype)
-                .filter(key => typeof serverClient[key] === 'function');
+            const availableMethods = Object.keys(serverClient.constructor.prototype).filter(
+                (key) => typeof serverClient[key] === 'function',
+            );
             console.error('streamCtgData method not found. Available methods:', availableMethods);
             reject(new Error('streamCtgData method not available on CTGStreamService'));
             return;
