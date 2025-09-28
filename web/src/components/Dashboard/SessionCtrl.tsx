@@ -6,6 +6,8 @@ import block from 'bem-cn-lite';
 import {useSession} from './SessionContext';
 import {useState} from 'react';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const b = block('dashboard-sessiontCtrl');
 
 export function SessionControl() {
@@ -22,10 +24,32 @@ export function SessionControl() {
     } = useSession();
 
     const [inputCardId, setInputCardId] = useState('');
+    const [validationState, setValidationState] = useState<'invalid' | undefined>(undefined);
+    const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+
+    const handleInputChange = (value: string) => {
+        setInputCardId(value);
+
+        if (value.trim() === '') {
+            setValidationState(undefined);
+            setErrorMessage(undefined);
+        } else if (!UUID_REGEX.test(value)) {
+            setValidationState('invalid');
+            setErrorMessage(
+                'Введите корректный UUID формат (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)',
+            );
+        } else {
+            setValidationState(undefined);
+            setErrorMessage(undefined);
+        }
+    };
 
     const handleStartSession = () => {
-        if (inputCardId.trim()) {
+        if (inputCardId.trim() && UUID_REGEX.test(inputCardId)) {
             startSession(inputCardId);
+        } else {
+            setValidationState('invalid');
+            setErrorMessage('Введите корректный UUID перед началом сессии');
         }
     };
 
@@ -55,10 +79,13 @@ export function SessionControl() {
                     <>
                         <TextInput
                             value={inputCardId}
-                            onUpdate={setInputCardId}
+                            onUpdate={handleInputChange}
                             placeholder="Введите card_id"
                             size="m"
                             style={{width: '200px'}}
+                            validationState={validationState}
+                            errorMessage={errorMessage}
+                            hasClear
                         />
                         <Button
                             view="outlined"
