@@ -6,7 +6,7 @@ export const Wrapper = ({children}: {children: React.ReactNode}) => {
                 background: '#6e6262fa',
                 height: '100%',
                 border: '1px solid black',
-                borderRadius: '3%'
+                borderRadius: '1%'
             }}
         >
             {children}
