@@ -11,7 +11,7 @@ const docTemplate = `{
         "title": "{{.Title}}",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
-            "name": "API Support Team",
+            "name": "API Support",
             "url": "http://www.swagger.io/support",
             "email": "support@swagger.io"
         },
@@ -24,97 +24,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/cards/{card_id}/sessions": {
-            "get": {
-                "description": "Возвращает все сессии мониторинга КТГ для указанной медицинской карты",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "cards"
-                ],
-                "summary": "Получение сессий для медицинской карты",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "UUID медицинской карты",
-                        "name": "card_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Сессии медицинской карты",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.CardSessionsResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Неверный ID медицинской карты",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Ошибка получения сессий",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/devices": {
-            "get": {
-                "description": "Возвращает список всех доступных устройств КТГ в системе",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "devices"
-                ],
-                "summary": "Получение списка устройств",
-                "responses": {
-                    "200": {
-                        "description": "Список устройств",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.DevicesResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/devices/{device_id}/status": {
-            "get": {
-                "description": "Возвращает текущий статус указанного устройства КТГ",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "devices"
-                ],
-                "summary": "Получение статуса устройства",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Идентификатор устройства",
-                        "name": "device_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Статус устройства",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.DeviceStatusResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/monitoring/cleanup": {
             "post": {
                 "description": "Выполняет очистку зависших и неактивных сессий в системе",
@@ -150,26 +59,6 @@ const docTemplate = `{
                         "description": "Состояние сервиса",
                         "schema": {
                             "$ref": "#/definitions/handlers.HealthResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/sessions/active": {
-            "get": {
-                "description": "Возвращает список всех активных сессий мониторинга КТГ",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "sessions"
-                ],
-                "summary": "Получение списка активных сессий",
-                "responses": {
-                    "200": {
-                        "description": "Список активных сессий",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ActiveSessionsResponse"
                         }
                     }
                 }
@@ -292,134 +181,9 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/sessions/{session_id}": {
-            "get": {
-                "description": "Возвращает подробную информацию о конкретной сессии мониторинга",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "sessions"
-                ],
-                "summary": "Получение информации о сессии",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "UUID сессии",
-                        "name": "session_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Информация о сессии",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.SessionResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Неверный ID сессии",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Сессия не найдена",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/sessions/{session_id}/data": {
-            "get": {
-                "description": "Возвращает все данные мониторинга КТГ, собранные во время указанной сессии",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "sessions"
-                ],
-                "summary": "Получение данных КТГ для сессии",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "format": "uuid",
-                        "description": "UUID сессии",
-                        "name": "session_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Данные КТГ сессии",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.SessionDataResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Неверный ID сессии",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Сессия не найдена",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.ErrorResponse"
-                        }
-                    }
-                }
-            }
         }
     },
     "definitions": {
-        "handlers.ActiveSessionsResponse": {
-            "description": "Список всех активных сессий мониторинга",
-            "type": "object",
-            "properties": {
-                "count": {
-                    "description": "Количество активных сессий",
-                    "type": "integer",
-                    "example": 3
-                },
-                "sessions": {
-                    "description": "Список активных сессий",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.SessionResponse"
-                    }
-                }
-            }
-        },
-        "handlers.CardSessionsResponse": {
-            "description": "Список сессий для конкретной медицинской карты",
-            "type": "object",
-            "properties": {
-                "card_id": {
-                    "description": "UUID медицинской карты",
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                },
-                "count": {
-                    "description": "Количество сессий",
-                    "type": "integer",
-                    "example": 5
-                },
-                "sessions": {
-                    "description": "Список сессий",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/handlers.SessionResponse"
-                    }
-                }
-            }
-        },
         "handlers.CleanupResponse": {
             "description": "Результат операции очистки зависших сессий",
             "type": "object",
@@ -433,63 +197,6 @@ const docTemplate = `{
                     "description": "Сообщение о результате",
                     "type": "string",
                     "example": "Очистка сессий выполнена"
-                }
-            }
-        },
-        "handlers.DeviceStatusResponse": {
-            "description": "Текущий статус устройства КТГ",
-            "type": "object",
-            "properties": {
-                "device_id": {
-                    "description": "Идентификатор устройства",
-                    "type": "string",
-                    "example": "CTG-DEVICE-001"
-                },
-                "duration": {
-                    "description": "Продолжительность активной сессии в секундах",
-                    "type": "integer",
-                    "example": 3600
-                },
-                "session_id": {
-                    "description": "UUID активной сессии (если есть)",
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440001"
-                },
-                "start_time": {
-                    "description": "Время начала активной сессии",
-                    "type": "string",
-                    "example": "2023-09-01T10:00:00Z"
-                },
-                "status": {
-                    "description": "Статус устройства",
-                    "type": "string",
-                    "enum": [
-                        "active",
-                        "idle"
-                    ],
-                    "example": "active"
-                }
-            }
-        },
-        "handlers.DevicesResponse": {
-            "description": "Список всех доступных устройств КТГ",
-            "type": "object",
-            "properties": {
-                "count": {
-                    "description": "Количество устройств",
-                    "type": "integer",
-                    "example": 2
-                },
-                "devices": {
-                    "description": "Список идентификаторов устройств",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "CTG-DEVICE-001",
-                        "CTG-DEVICE-002"
-                    ]
                 }
             }
         },
@@ -532,28 +239,6 @@ const docTemplate = `{
                     "description": "Время проверки",
                     "type": "string",
                     "example": "2023-09-01T10:00:00Z"
-                }
-            }
-        },
-        "handlers.SessionDataResponse": {
-            "description": "Данные мониторинга КТГ, собранные во время сессии",
-            "type": "object",
-            "properties": {
-                "fhr_data": {
-                    "description": "Данные частоты сердечных сокращений плода"
-                },
-                "session_id": {
-                    "description": "UUID сессии",
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440001"
-                },
-                "total_points": {
-                    "description": "Общее количество точек данных",
-                    "type": "integer",
-                    "example": 1250
-                },
-                "uc_data": {
-                    "description": "Данные маточных сокращений"
                 }
             }
         },
@@ -637,29 +322,13 @@ const docTemplate = `{
             }
         }
     },
-    "securityDefinitions": {
-        "ApiKeyAuth": {
-            "description": "API ключ для авторизации (если требуется)",
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
-        }
-    },
     "tags": [
         {
-            "description": "Управление сессиями мониторинга КТГ. Позволяет создавать, завершать и получать информацию о сессиях мониторинга.",
+            "description": "Управление сессиями мониторинга",
             "name": "sessions"
         },
         {
-            "description": "Работа с медицинскими картами пациентов. Получение истории сессий для конкретных пациентов.",
-            "name": "cards"
-        },
-        {
-            "description": "Управление устройствами КТГ. Мониторинг состояния и доступности медицинского оборудования.",
-            "name": "devices"
-        },
-        {
-            "description": "Мониторинг состояния сервиса. Проверка работоспособности системы и выполнение служебных операций.",
+            "description": "Мониторинг состояния сервиса",
             "name": "monitoring"
         }
     ]
@@ -670,9 +339,9 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8080",
 	BasePath:         "/api/v1",
-	Schemes:          []string{"http", "https"},
+	Schemes:          []string{},
 	Title:            "CTG Monitor API",
-	Description:      "API для системы мониторинга КТГ (кардиотокографии). Предоставляет возможности для управления сессиями мониторинга, работы с медицинскими картами и устройствами КТГ.",
+	Description:      "Стандартная структура успешного ответа",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
