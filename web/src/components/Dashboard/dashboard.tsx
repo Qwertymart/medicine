@@ -8,7 +8,7 @@ import {SessionControl} from './SessionCtrl';
 import {Loader, Switch} from '@gravity-ui/uikit';
 import {
     FetalHeartRateWidget,
-    UterineContractionsWidget,
+    // UterineContractionsWidget,
     Widget3,
 } from '@/components/Dashboard/Widgets';
 
@@ -22,14 +22,14 @@ DashKit.setSettings({
 DashKit.registerPlugins(
     {
         type: 'fetal-heart-rate',
-        defaultLayout: {w: 16, h: 25},
+        defaultLayout: {w: 40, h: 20},
         renderer: FetalHeartRateWidget,
     },
-    {
-        type: 'uterine-contractions',
-        defaultLayout: {w: 16, h: 25},
-        renderer: UterineContractionsWidget,
-    },
+    // {
+    //     type: 'uterine-contractions',
+    //     defaultLayout: {w: 16, h: 25},
+    //     renderer: UterineContractionsWidget,
+    // },
     {
         type: 'widget3',
         defaultLayout: {w: 16, h: 20},
@@ -42,17 +42,18 @@ const config: DashKitProps['config'] = {
     counter: 2,
     items: [
         {
+            // ТУТ ОБА ГРАФИКА!!!!!!!!!!!!!!!!!!!!!!! не забыть
             id: 'w1',
             data: {},
             type: 'fetal-heart-rate',
             namespace: 'default',
         },
-        {
-            id: 'w2',
-            data: {},
-            type: 'uterine-contractions',
-            namespace: 'default',
-        },
+        // {
+        //     id: 'w2',
+        //     data: {},
+        //     type: 'uterine-contractions',
+        //     namespace: 'default',
+        // },
         {
             id: 'w3',
             data: {},
@@ -62,24 +63,24 @@ const config: DashKitProps['config'] = {
     ],
     layout: [
         {
-            h: 12,
+            h: 15,
             i: 'w1',
-            w: 16,
-            x: 1,
+            w: 40,
+            x: 0,
             y: 0,
         },
-        {
-            h: 12,
-            i: 'w2',
-            w: 16,
-            x: 17,
-            y: 0,
-        },
+        // {
+        //     h: 12,
+        //     i: 'w2',
+        //     w: 16,
+        //     x: 17,
+        //     y: 0,
+        // },
         {
             h: 5,
             i: 'w3',
             w: 16,
-            x: 1,
+            x: 0,
             y: 40,
         },
     ],
@@ -129,7 +130,7 @@ export function Dashboard() {
                 <div
                     className={b('container')}
                     // style={{paddingLeft: 20, height: 'auto', width: '100vw',}}
-                    style={{paddingLeft: 20, height: 'auto', width: '90vw',}}
+                    style={{paddingLeft: 20, height: 'auto', width: '90vw'}}
                 >
                     <SessionControl />
                     <DashKit config={config} editMode={isEditMode} />
