@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   postgres:
     image: postgres:15-alpine
@@ -5,12 +7,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}  
+      POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ctg-network
 
   mosquitto:
     image: eclipse-mosquitto:2.0
@@ -23,6 +27,8 @@ services:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
+    networks:
+      - ctg-network
 
   ctg-emulator:
     build:
@@ -38,7 +44,18 @@ services:
     depends_on:
       - mosquitto
     environment:
-      - MQTT_BROKER=tcp://mosquitto:1883
+      # ИСПРАВЛЕННАЯ конфигурация MQTT
+      - MQTT_BROKER=tcp://mosquitto:1883  # Используем DNS имя сервиса
+      - MQTT_HOST=mosquitto               # Альтернативная переменная
+      - MQTT_PORT=1883
+      - MQTT_CLIENT_ID=ctg_emulator
+      - MQTT_USERNAME=ctg_mqtt_user
+      - MQTT_PASSWORD=ctg_mqtt_password
+    networks:
+      - ctg-network
+    # Добавляем extra_hosts для совместимости (если эмулятор использует host.docker.internal)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   ctg-monitor:
     build:
@@ -54,25 +71,43 @@ services:
       - postgres
       - mosquitto
     environment:
-      # Переопределяем переменные окружения для Docker
-      - DB_HOST=ctg_postgres
+      # Database Configuration
+      - DB_HOST=postgres                    # Используем DNS имя сервиса
       - DB_PORT=5432
-      - DB_USER=ctg_user
-      - DB_PASSWORD=ctd_password
-      - DB_NAME=ctg_monitor
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
       - DB_SSLMODE=disable
       - DB_TIMEZONE=Europe/Moscow
-      - MQTT_BROKER=tcp://mosquitto:1883
+
+      # MQTT Configuration
+      - MQTT_BROKER=tcp://mosquitto:1883    # Используем DNS имя сервиса
+      - MQTT_HOST=mosquitto                 # Альтернативная переменная
+      - MQTT_PORT=1883
       - MQTT_CLIENT_ID=ctg_monitor_service
       - MQTT_USERNAME=ctg_mqtt_user
       - MQTT_PASSWORD=ctg_mqtt_password
       - MQTT_QOS=1
+
+      # Application Configuration
       - HTTP_PORT=8080
       - GRPC_PORT=50051
       - LOG_LEVEL=info
       - BUFFER_SIZE=100
       - BUFFER_FLUSH_INTERVAL=10
       - MAX_BUFFER_SIZE=1000
+    networks:
+      - ctg-network
+    # Добавляем health check
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  ctg-network:
+    driver: bridge
 
 volumes:
   postgres_data:

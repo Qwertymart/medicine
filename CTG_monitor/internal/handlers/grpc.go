@@ -304,11 +304,13 @@ func (gs *GRPCStreamer) StreamCTGData(req *pb.StreamRequest, stream pb.CTGStream
 		log.Printf("🔌 Потоковый клиент отключен: %s", clientID)
 	}()
 
+	var counter int
+
 	// Обработка отправки данных
 	for {
 		select {
 		case data := <-subscriber.Channel:
-			if gs.shouldSendData(data, req) {
+			if gs.shouldSendData(data, req, &counter) {
 				if err := stream.Send(data); err != nil {
 					log.Printf("❌ Ошибка отправки потоковых данных клиенту %s: %v", clientID, err)
 					return err
@@ -322,17 +324,42 @@ func (gs *GRPCStreamer) StreamCTGData(req *pb.StreamRequest, stream pb.CTGStream
 }
 
 // shouldSendData проверяет, нужно ли отправлять данные клиенту
-func (gs *GRPCStreamer) shouldSendData(data *pb.CTGDataResponse, req *pb.StreamRequest) bool {
-	// Проверка устройства
-	if len(req.DeviceIds) > 0 && !gs.containsDevice(req.DeviceIds, data.DeviceId) {
+func (gs *GRPCStreamer) shouldSendData(data *pb.CTGDataResponse, req *pb.StreamRequest, counter *int) bool {
+	if data.Value == -1 {
 		return false
 	}
 
-	// Проверка типа данных
-	if len(req.DataTypes) > 0 && !gs.containsDataType(req.DataTypes, data.DataType) {
-		return false
+	// Все остальные проверки без изменений...
+	if len(req.DeviceIds) > 0 {
+		deviceMatch := false
+		for _, deviceID := range req.DeviceIds {
+			if data.DeviceId == deviceID {
+				deviceMatch = true
+				break
+			}
+		}
+		if !deviceMatch {
+			return false
+		}
 	}
 
+	if len(req.DataTypes) > 0 {
+		typeMatch := false
+		for _, dataType := range req.DataTypes {
+			if data.DataType == dataType {
+				typeMatch = true
+				break
+			}
+		}
+		if !typeMatch {
+			return false
+		}
+	}
+
+	//// Увеличиваем локальный счетчик
+	//(*counter)++
+	//
+	//// Отправляем каждое 3-е значение
 	return true
 }
 
