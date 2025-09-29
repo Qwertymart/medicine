@@ -114,11 +114,16 @@ export function SessionControl() {
 
             {activeSession && (
                 <div className={b('sessionInfo')}>
-                    Активная сессия: {sessionId}
+                    <Alert
+                        theme="success"
+                        title="Подключено"
+                        message={`Активная сессия: ${sessionId}\nМедицинская карта: ${cardId}\nУстройство: ${deviceId}`}
+                    />
+                    {/* Активная сессия: {sessionId}
                     <br />
                     Медицинская карта: {cardId}
                     <br />
-                    Устройство: {deviceId}
+                    Устройство: {deviceId} */}
                 </div>
             )}
         </div>
