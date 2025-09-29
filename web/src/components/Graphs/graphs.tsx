@@ -139,10 +139,10 @@ function generateDataPoint(dataType: string, baseValue: number, timeSec: number)
 }
 
 export function Graphs({dataType, title, color}: GraphsProps) {
-    // const mockStreamData = useMockStream(dataType, false);
-    // const isConnected = true;
-    // const ctgData = mockStreamData;
-    const {ctgData, isConnected} = useSession();
+    const mockStreamData = useMockStream(dataType, false);
+    const isConnected = true;
+    const ctgData = mockStreamData;
+    // const {ctgData, isConnected} = useSession();
 
     const filteredData = useMemo(() => {
         if (!ctgData || ctgData.length === 0) return [];
@@ -232,13 +232,16 @@ export function Graphs({dataType, title, color}: GraphsProps) {
         const indicator: IndicatorWidgetDataItem = {
             content: {
                 current: {
-                    value: lastValidValue !== null ? lastValidValue.toString() : 'No signal',
+                    value:
+                        lastValidValue !== null
+                            ? lastValidValue.toFixed(2).toString()
+                            : 'No signal',
                     color: lastValidValue !== null ? color : '#ff4444',
                 },
             },
             color: lastValidValue !== null ? color : '#ff4444',
             title,
-            size: 'm',
+            size: 's',
             nowrap: true,
         };
 
@@ -322,6 +325,8 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        fontSize: 17,
+                        fontWeight: 500,
                     }}
                 >
                     <ChartKit type="indicator" data={indicatorData} />

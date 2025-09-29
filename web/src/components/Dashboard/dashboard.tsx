@@ -100,7 +100,7 @@ export function Dashboard() {
         return (
             <div
                 style={{
-                    padding: 20,
+                    padding: 10,
                     height: 'auto',
                     width: '100vw',
                     display: 'flex',
