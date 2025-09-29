@@ -1,31 +1,25 @@
-// proto/ctg_stream.proto - ДОБАВИТЬ или ЗАМЕНИТЬ существующий proto
 syntax = "proto3";
 
 package ctg;
-option go_package = "CTG_monitor/proto";
+
+option go_package = "./api/proto";
+
 
 service CTGStreamService {
-  // Потоковая передача данных КТГ (в реальном времени)
+  // Стриминг данных КТГ (только значения)
   rpc StreamCTGData(StreamRequest) returns (stream CTGDataResponse);
-
-  // Батчевая передача данных КТГ (каждые 4 минуты)
-  rpc StreamBatchCTGData(StreamRequest) returns (stream CTGBatchResponse);
 }
 
+// Запрос на стриминг
 message StreamRequest {
-  repeated string device_ids = 1;  // Фильтр по устройствам (пустой = все)
-  repeated string data_types = 2;  // Фильтр по типам данных (пустой = все)
+  repeated string device_ids = 1;  // ID устройств для подписки
+  repeated string data_types = 2;  // Типы данных (fetal_heart_rate, uterine_contractions)
 }
 
+// Ответ со стримингом данных КТГ (минимальный)
 message CTGDataResponse {
   string device_id = 1;
   string data_type = 2;
-  double value = 3;
-  double time_sec = 4;
-}
-
-message CTGBatchResponse {
-  repeated CTGDataResponse data = 1;
-  int64 timestamp = 2;
-  int32 count = 3;
+  double value = 3;                // Значение (-1 = потеря сигнала)
+  double time_sec = 4;             // Время в секундах
 }

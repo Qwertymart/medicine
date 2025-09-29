@@ -1,88 +1,70 @@
 {
-    "name": "gravity-ui-example-nextjs",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-        "dev": "next dev --turbopack",
-        "build": "next build",
-        "start": "next start",
-        "lint:js": "eslint --ext .js,.jsx,.ts,.tsx .",
-        "lint:styles": "stylelint '{styles,src}/**/*.scss'",
-        "lint:prettier": "prettier --check '**/*.md'",
-        "lint": "npm run lint:js && npm run lint:styles && npm run lint:prettier",
-        "generate:grpc:alt": "grpc_tools_node_protoc --js_out=import_style=commonjs,binary:src/proto/generated --grpc_out=grpc_js:src/proto/generated --ts_out=grpc_js:src/proto/generated --proto_path=../client_grpc/proto ../client_grpc/proto/*.proto",
-        "generate:grpc": "proto-loader-gen-types --longs=String --enums=String --defaults --oneofs --grpcLib=@grpc/grpc-js --outDir=src/proto/generated ../client_grpc/proto/ctg_simple.proto"
-    },
-    "dependencies": {
-        "@gravity-ui/dashkit": "^9.1.1",
-        "@gravity-ui/data-source": "^0.7.0",
-        "@gravity-ui/icons": "^2.16.0",
-        "@gravity-ui/navigation": "^3.7.0",
-        "@grpc/grpc-js": "^1.14.0",
-        "@grpc/proto-loader": "^0.8.0",
-        "@tanstack/react-query": "^5.90.1",
-        "bem-cn-lite": "^4.1.0",
-        "grpc-web": "^2.0.2",
-        "next": "^15.5.3",
-        "react": "^19.1.1",
-        "react-dom": "^19.1.1"
-    },
-    "devDependencies": {
-        "@gravity-ui/browserslist-config": "^4.3.0",
-        "@gravity-ui/chartkit": "^7.11.1",
-        "@gravity-ui/eslint-config": "^4.2.0",
-        "@gravity-ui/prettier-config": "^1.1.0",
-        "@gravity-ui/stylelint-config": "^5.0.0",
-        "@gravity-ui/tsconfig": "^1.0.0",
-        "@gravity-ui/uikit": "^7.23.0",
-        "@svgr/webpack": "^8.1.0",
-        "@types/google-protobuf": "^3.15.12",
-        "@types/node": "^24.5.2",
-        "@types/react": "^19.1.13",
-        "@types/react-dom": "^19.1.9",
-        "eslint": "^9.36.0",
-        "eslint-config-next": "^15.5.3",
-        "grpc-tools": "^1.13.0",
-        "husky": "^9.1.7",
-        "lint-staged": "^16.2.0",
-        "prettier": "^3.6.2",
-        "sass": "^1.93.0",
-        "sass-loader": "^16.0.5",
-        "stylelint": "^16.24.0",
-        "typescript": "^5.9.2"
-    },
-    "engines": {
-        "node": ">=18"
-    },
-    "browserslist": [
-        "extends @gravity-ui/browserslist-config"
+  "name": "gravity-ui-example-nextjs",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prepare": "husky install",
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint:js": "eslint --ext .js,.jsx,.ts,.tsx .",
+    "lint:styles": "stylelint '{styles,src}/**/*.scss'",
+    "lint:prettier": "prettier --check '**/*.md'",
+    "lint": "npm run lint:js && npm run lint:styles && npm run lint:prettier"
+  },
+  "dependencies": {
+    "@gravity-ui/dashkit": "^9.1.1",
+    "@gravity-ui/data-source": "^0.7.0",
+    "@gravity-ui/icons": "^2.16.0",
+    "@gravity-ui/navigation": "^3.7.0",
+    "@tanstack/react-query": "^5.90.1",
+    "bem-cn-lite": "^4.1.0",
+    "next": "^15.5.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@gravity-ui/browserslist-config": "^4.3.0",
+    "@gravity-ui/chartkit": "^7.11.1",
+    "@gravity-ui/eslint-config": "^4.2.0",
+    "@gravity-ui/prettier-config": "^1.1.0",
+    "@gravity-ui/stylelint-config": "^5.0.0",
+    "@gravity-ui/tsconfig": "^1.0.0",
+    "@gravity-ui/uikit": "^7.23.0",
+    "@svgr/webpack": "^8.1.0",
+    "@types/node": "^24.5.2",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "eslint": "^9.36.0",
+    "eslint-config-next": "^15.5.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.0",
+    "prettier": "^3.6.2",
+    "sass": "^1.93.0",
+    "sass-loader": "^16.0.5",
+    "stylelint": "^16.24.0",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "browserslist": [
+    "extends @gravity-ui/browserslist-config"
+  ],
+  "overrides": {
+    "react": "$react",
+    "react-dom": "$react-dom"
+  },
+  "lint-staged": {
+    "*.{scss}": [
+      "stylelint --fix --quiet"
     ],
-    "overrides": {
-        "react": "$react",
-        "react-dom": "$react-dom"
-    },
-    "lint-staged": {
-        "*.{scss}": [
-            "stylelint --fix --quiet"
-        ],
-        "*.{js,jsx,ts,tsx}": [
-            "eslint --fix --quiet",
-            "prettier --write"
-        ],
-        "*.md": [
-            "prettier --write"
-        ]
-    },
-    "pnpm": {
-        "ignoredBuiltDependencies": [
-            "grpc-tools"
-        ],
-        "onlyBuiltDependencies": [
-            "@parcel/watcher",
-            "grpc-tools",
-            "protobufjs",
-            "sharp",
-            "unrs-resolver"
-        ]
-    }
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix --quiet",
+      "prettier --write"
+    ],
+    "*.md": [
+      "prettier --write"
+    ]
+  }
 }
