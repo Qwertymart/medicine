@@ -8,26 +8,49 @@ static_resources:
             - name: envoy.filters.network.http_connection_manager
               typed_config:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                stat_prefix: ingress
+                stat_prefix: ingress_http
+                codec_type: AUTO
                 route_config:
                   name: local_route
                   virtual_hosts:
-                    - name: nextjs
+                    - name: nextjs_service
                       domains: ["*"]
+                      cors:
+                        allow_origin_string_match:
+                          - prefix: "*"
+                        allow_methods: GET, PUT, DELETE, POST, OPTIONS
+                        allow_headers: keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,custom-header-1,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,grpc-timeout
+                        max_age: "1728000"
+                        expose_headers: custom-header-1,grpc-status,grpc-message
                       routes:
+                        - match: { prefix: "/", grpc: {} }
+                          route:
+                            cluster: nextjs_cluster
+                            timeout: 0s
+                            max_stream_duration:
+                              grpc_timeout_header_max: 0s
                         - match: { prefix: "/" }
                           route:
-                            cluster: nextjs
+                            cluster: nextjs_cluster
                 http_filters:
+                  - name: envoy.filters.http.grpc_web
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb
+                  - name: envoy.filters.http.cors
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
                   - name: envoy.filters.http.router
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
-    - name: nextjs
+    - name: nextjs_cluster
       connect_timeout: 30s
       type: LOGICAL_DNS
+      http2_protocol_options: {}
       lb_policy: ROUND_ROBIN
       load_assignment:
-        cluster_name: nextjs
+        cluster_name: nextjs_cluster
         endpoints:
           - lb_endpoints:
               - endpoint:

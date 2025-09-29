@@ -1,66 +1,120 @@
 'use client';
 
-import {Button, Icon} from '@gravity-ui/uikit';
 import {DashKit, DashKitProps} from '@gravity-ui/dashkit';
 import {useState, useEffect} from 'react';
 import {Graphs} from '../Graphs';
-import {CirclePlayFill, StopFill} from '@gravity-ui/icons';
 import block from 'bem-cn-lite';
+import {SessionProvider, useSession} from './SessionContext';
+import {SessionControl} from './SessionCtrl';
+import {Card, Text} from '@gravity-ui/uikit';
 
 const b = block('dashboard');
 
 DashKit.setSettings({
-    gridLayout: {margin: [9, 9]},
+    gridLayout: {margin: [10, 10]},
     isMobile: false,
 });
 
+const FetalHeartRateWidget = () => {
+    const {activeSession} = useSession();
+
+    return (
+        <div style={{padding: '10px', background: '#ffffff', height: '100%'}}>
+            <Text variant="header-2" style={{marginBottom: '10px'}}>
+                ЧСС плода
+            </Text>
+            {activeSession && (
+                <Card view="filled" style={{padding: '10px', marginBottom: '10px'}}>
+                    <Text variant="body-2">Card ID: {activeSession.card_id}</Text>
+                </Card>
+            )}
+            <Graphs dataType="fetal_heart_rate" title="ЧСС плода (уд/мин)" color="#6c59c2" />
+        </div>
+    );
+};
+
+const UterineContractionsWidget = () => {
+    const {ctgData} = useSession();
+
+    const calculateStats = () => {
+        if (ctgData.length === 0) return null;
+
+        const heartRates = ctgData.map((p) => p.fetalHeartRate).filter(Boolean) as number[];
+        const contractions = ctgData.map((p) => p.uterineContractions).filter(Boolean) as number[];
+
+        return {
+            avgHeartRate: heartRates.length
+                ? (heartRates.reduce((a, b) => a + b) / heartRates.length).toFixed(1)
+                : '0',
+            maxContraction: contractions.length ? Math.max(...contractions) : 0,
+            avgContraction: contractions.length
+                ? (contractions.reduce((a, b) => a + b) / contractions.length).toFixed(1)
+                : '0',
+        };
+    };
+
+    const stats = calculateStats();
+
+    return (
+        <div style={{padding: '10px', background: '#ffffff', height: '100%'}}>
+            <Text variant="header-2" style={{marginBottom: '10px'}}>
+                Сокращения матки
+            </Text>
+
+            <Graphs dataType="uterine_contractions" title="Сокращения матки" color="#ff2d87" />
+
+            {stats && (
+                <Card view="filled" style={{padding: '10px', marginTop: '10px'}}>
+                    <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px'}}>
+                        <div>
+                            <Text variant="body-2">Средняя ЧСС</Text>
+                            <Text variant="body-1">{stats.avgHeartRate} уд/мин</Text>
+                        </div>
+                        <div>
+                            <Text variant="body-2">Макс. сокращение</Text>
+                            <Text variant="body-1">{stats.maxContraction}</Text>
+                        </div>
+                    </div>
+                </Card>
+            )}
+        </div>
+    );
+};
+
 DashKit.registerPlugins(
     {
-        type: 'widget1',
+        type: 'fetal-heart-rate',
         defaultLayout: {w: 16, h: 14},
-        renderer: function Widget1() {
-            return (
-                <div style={{padding: '10px', background: '#ffffff'}}>
-                    <h1>Первый виджет</h1>
-                    <Graphs />
-                </div>
-            );
-        },
+        renderer: FetalHeartRateWidget,
     },
     {
-        type: 'widget2',
+        type: 'uterine-contractions',
         defaultLayout: {w: 16, h: 14},
-        renderer: function Widget2() {
-            return (
-                <div style={{padding: '10px', background: '#ffffff'}}>
-                    <h1>Второй виджет</h1>
-                    <Graphs />
-                </div>
-            );
-        },
+        renderer: UterineContractionsWidget,
     },
     {
         type: 'widget3',
-        defaultLayout: {w: 6, h: 4},
+        defaultLayout: {w: 16, h: 20},
         renderer: function Widget3() {
             return <div style={{padding: '10px', background: '#ffffff'}}>Третий виджет</div>;
         },
     },
 );
+
 const config: DashKitProps['config'] = {
     salt: '0.46703554571365613',
-    counter: 3,
+    counter: 2,
     items: [
         {
             id: 'w1',
             data: {},
-            type: 'widget1',
+            type: 'fetal-heart-rate',
             namespace: 'default',
         },
         {
             id: 'w2',
             data: {},
-            type: 'widget2',
+            type: 'uterine-contractions',
             namespace: 'default',
         },
         {
@@ -86,11 +140,11 @@ const config: DashKitProps['config'] = {
             y: 0,
         },
         {
-            h: 4,
+            h: 20,
             i: 'w3',
             w: 16,
             x: 1,
-            y: 25,
+            y: 30,
         },
     ],
     aliases: {},
@@ -99,14 +153,6 @@ const config: DashKitProps['config'] = {
 
 export function Dashboard() {
     const [mounted, setMounted] = useState(false);
-
-    function handleStart() {
-        throw new Error('Function not implemented.');
-    }
-
-    function handleStop() {
-        throw new Error('Function not implemented.');
-    }
 
     useEffect(() => {
         setMounted(true);
@@ -130,26 +176,14 @@ export function Dashboard() {
     }
 
     return (
-        <div className={b('container')} style={{paddingLeft: 20, height: '100vh', width: '100vw'}}>
+        <SessionProvider>
             <div
-                className={b('buttons')}
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingBottom: 10,
-                }}
+                className={b('container')}
+                style={{paddingLeft: 20, height: 'auto', width: '100vw'}}
             >
-                <Button view="outlined" size="xl" onClick={handleStart}>
-                    <Icon data={CirclePlayFill} size={36} />
-                    Старт
-                </Button>
-                <Button view="outlined" size="xl" onClick={handleStop}>
-                    Стоп
-                    <Icon data={StopFill} size={36} />
-                </Button>
+                <SessionControl />
+                <DashKit config={config} editMode={false} />
             </div>
-            <DashKit config={config} editMode={true} />
-        </div>
+        </SessionProvider>
     );
 }
