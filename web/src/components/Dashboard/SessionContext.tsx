@@ -240,7 +240,7 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
                 const result = await response.json();
                 if (result.data) {
                     setActiveSession(result.data);
-                    localStorage.setItem('ctg_session', JSON.stringify(result.data));
+                    // localStorage.setItem('ctg_session', JSON.stringify(result.data));
                     startEventStream(cardId);
                 }
             } catch (err) {
@@ -282,20 +282,20 @@ export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children
         setCtgData([]);
     }, []);
 
-    useEffect(() => {
-        const savedSession = localStorage.getItem('ctg_session');
-        if (savedSession) {
-            try {
-                const session = JSON.parse(savedSession);
-                setActiveSession(session);
-            } catch (e) {
-                console.error('Error parsing saved session:', e);
-                localStorage.removeItem('ctg_session');
-            }
-        }
+    // useEffect(() => {
+    //     const savedSession = localStorage.getItem('ctg_session');
+    //     if (savedSession) {
+    //         try {
+    //             const session = JSON.parse(savedSession);
+    //             setActiveSession(session);
+    //         } catch (e) {
+    //             console.error('Error parsing saved session:', e);
+    //             localStorage.removeItem('ctg_session');
+    //         }
+    //     }
 
-        checkActiveSession();
-    }, [checkActiveSession]);
+    //     checkActiveSession();
+    // }, [checkActiveSession]);
 
     useEffect(() => {
         return () => {
