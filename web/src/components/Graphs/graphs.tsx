@@ -139,13 +139,11 @@ function generateDataPoint(dataType: string, baseValue: number, timeSec: number)
 }
 
 export function Graphs({dataType, title, color}: GraphsProps) {
-    const {ctgData: realCtgData, isConnected} = useSession();
     // const mockStreamData = useMockStream(dataType, false);
     // const isConnected = true;
-
-    // const ctgData = isConnected ? realCtgData : mockStreamData;
-    const ctgData = realCtgData;
     // const ctgData = mockStreamData;
+    const {ctgData, isConnected} = useSession();
+
     const filteredData = useMemo(() => {
         if (!ctgData || ctgData.length === 0) return [];
 
@@ -169,17 +167,24 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                 libraryConfig: {
                     title: {text: title},
                     axes: {
-                        x: {label: 'Time', scale: 'time'},
+                        x: {
+                            label: 'Time',
+                            scale: 'time',
+                        },
                         y: {
                             label: dataType === 'fetal_heart_rate' ? 'BPM' : 'Units',
                             range: dataType === 'fetal_heart_rate' ? [0, 200] : [0, 100],
                         },
                     },
-                },
+                } as any,
             };
         }
 
         const mainData = filteredData.map((point) => (point.value !== -1 ? point.value : null));
+
+        // окно ленты(последние 10 минут)
+        const now = Date.now();
+        const timeWindow = 10 * 60 * 1000;
 
         return {
             data: {
@@ -206,14 +211,18 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                     text: title,
                 },
                 axes: {
-                    x: {label: 'Time', scale: 'time'},
+                    x: {
+                        label: 'Time',
+                        scale: 'time',
+                        range: [now - timeWindow, now] as [number, number],
+                    },
                     y: {
                         label: dataType === 'fetal_heart_rate' ? 'BPM' : 'Units',
                         range: dataType === 'fetal_heart_rate' ? [0, 200] : [0, 100],
                     },
                 },
                 tooltip: {show: true},
-            },
+            } as any,
         };
     }, [filteredData, title, color, dataType]);
 
@@ -246,9 +255,8 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                 className={b('container')}
                 style={{
                     display: 'flex',
-                    flexDirection: 'column',
-                    height: 400,
-                    gap: '20px',
+                    flexDirection: 'row',
+                    height: '30vh',
                     alignItems: 'center',
                     justifyContent: 'center',
                     background: '#f9f9f9',
@@ -257,9 +265,6 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                 }}
             >
                 <div style={{fontSize: 16, fontWeight: 500}}>Ожидание данных КТГ...</div>
-                <div style={{fontSize: 14, color: '#666'}}>
-                    Запустите сессию для начала мониторинга
-                </div>
             </div>
         ),
         [],
@@ -274,9 +279,8 @@ export function Graphs({dataType, title, color}: GraphsProps) {
             className={b('container')}
             style={{
                 display: 'flex',
-                flexDirection: 'column',
+                flexDirection: 'row',
                 height: '30vh',
-                gap: 15,
             }}
         >
             <div
@@ -284,11 +288,14 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                 style={{
                     flex: 1,
                     border: '1px solid #e0e0e0',
-                    borderRadius: 8,
+                    borderRight: 'none',
+                    borderRadius: '8px 0 0 8px',
                     padding: 12,
                     background: 'white',
                     minHeight: '30vh',
                     height: '30vh',
+                    minWidth: 0,
+                    overflow: 'hidden',
                 }}
             >
                 <ChartKit type="yagr" data={graphData} />
@@ -297,20 +304,24 @@ export function Graphs({dataType, title, color}: GraphsProps) {
             <div
                 className={b('indicator_container')}
                 style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr',
-                    gap: 15,
-                    height: '100',
+                    width: 150,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '32.1vh',
                 }}
             >
                 <div
                     className={b('indicator')}
                     style={{
                         border: '1px solid #e0e0e0',
-                        borderRadius: 8,
+                        borderLeft: 'none',
+                        borderRadius: '0 8px 8px 0',
                         padding: 12,
                         background: 'white',
-                        height: '100%',
+                        height: '40vh',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                     }}
                 >
                     <ChartKit type="indicator" data={indicatorData} />
