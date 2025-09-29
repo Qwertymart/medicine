@@ -1,78 +1,134 @@
-services:
+services:  # Уберите version: '3.8' - это устаревшее
+  # PostgreSQL с healthcheck
   postgres:
     image: postgres:15-alpine
-    container_name: ctg_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}  
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
+    environment:
+      - POSTGRES_DB=plant_analyzer
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password123
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
-  mosquitto:
-    image: eclipse-mosquitto:2.0
-    container_name: ctg_mosquitto
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d plant_analyzer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
-    ports:
-      - "1883:1883"
-      - "9001:9001"
-    volumes:
-      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./mosquitto/data:/mosquitto/data
-      - ./mosquitto/log:/mosquitto/log
 
-  ctg-emulator:
-    build:
-      context: ./medicine_emulator
-      dockerfile: Dockerfile
-    image: ctg-emulator:latest
-    container_name: ctg_emulator_service
-    restart: unless-stopped
-    ports:
-      - "8081:8081"
-    volumes:
-      - ./medicine_emulator/data:/app/data
+  # Сервис миграций
+  migrate:
+    image: migrate/migrate:v4.17.0
     depends_on:
-      - mosquitto
-    environment:
-      - MQTT_BROKER=tcp://mosquitto:1883
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./database:/migrations  # Правильно: монтируем в /migrations
+    command: [
+      "-path", "/migrations",   # ИСПРАВЛЕНО: было /migration
+      "-database", "postgres://user:password123@postgres:5432/plant_analyzer?sslmode=disable",
+      "up"
+    ]
+    restart: on-failure
 
-  ctg-monitor:
+  # Ваше приложение - теперь зависит от миграций
+  auth-service:
     build:
-      context: ./CTG_monitor
+      context: ./auth
       dockerfile: Dockerfile
-    image: ctg-monitor:latest
-    container_name: ctg_monitor_service
-    restart: unless-stopped
     ports:
       - "8080:8080"
-      - "50051:50051"
-    depends_on:
-      - postgres
-      - mosquitto
     environment:
-      # Переопределяем переменные окружения для Docker
-      - DB_HOST=ctg_postgres
-      - DB_PORT=5432
-      - DB_USER=ctg_user
-      - DB_PASSWORD=ctd_password
-      - DB_NAME=ctg_monitor
-      - DB_SSLMODE=disable
-      - DB_TIMEZONE=Europe/Moscow
-      - MQTT_BROKER=tcp://mosquitto:1883
-      - MQTT_CLIENT_ID=ctg_monitor_service
-      - MQTT_USERNAME=ctg_mqtt_user
-      - MQTT_PASSWORD=ctg_mqtt_password
-      - MQTT_QOS=1
-      - HTTP_PORT=8080
-      - GRPC_PORT=50051
       - LOG_LEVEL=info
-      - BUFFER_SIZE=100
-      - BUFFER_FLUSH_INTERVAL=10
-      - MAX_BUFFER_SIZE=1000
+      - LOG_FORMAT=json
+      - DB_HOST=postgres
+      - DB_PASSWORD=password123
+      - ENV=development
+    labels:
+      - "logging=promtail"
+      - "service=auth-service"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully  # ДОБАВЛЕНО
+    restart: unless-stopped
+
+  # Мониторинг стек
+  loki:
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    volumes:
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.40.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.1.0
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    depends_on:
+      - loki
+      - prometheus
+    restart: unless-stopped
+
+
+  nextjs:
+    build: ./web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+
+  envoy:
+    image: envoyproxy/envoy:v1.33-latest
+    volumes:
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml
+    depends_on:
+      - nextjs
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - envoy
 
 volumes:
   postgres_data:
+  loki_data:
+  prometheus_data:
+  grafana_data:
