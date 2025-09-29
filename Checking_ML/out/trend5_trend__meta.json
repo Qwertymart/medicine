@@ -1,0 +1,31 @@
+{
+  "model_name": "trend5_trend",
+  "features": [
+    "f_240s_fhr_mean",
+    "f_240s_fhr_std",
+    "f_240s_fhr_min",
+    "f_240s_fhr_max",
+    "f_240s_fhr_iqr",
+    "f_240s_fhr_rmssd",
+    "f_240s_fhr_abs_dev",
+    "f_240s_fhr_brady_len",
+    "f_240s_fhr_tachy_len",
+    "f_240s_uc_mean",
+    "f_240s_uc_std",
+    "f_240s_uc_max",
+    "f_240s_uc_iqr",
+    "f_240s_uc_peak_cnt",
+    "f_240s_uc_area",
+    "f_240s_fhr_decel_cnt",
+    "f_240s_xcorr_maxabs",
+    "f_240s_xcorr_lag"
+  ],
+  "classes": [
+    "down",
+    "flat",
+    "up"
+  ],
+  "notes": "online-ready; only f_240s_*; no *_future_*",
+  "fs_hz": 8.0,
+  "window_sec": 240
+}
