@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -87,7 +89,7 @@ var Regular = map[string]string{
 	"4444000022224444": "107",
 }
 
-// Hypoxia - полный словарик для случаев гипоксии (данные из hypoxia.xlsx)  
+// Hypoxia - полный словарик для случаев гипоксии (данные из hypoxia.xlsx)
 var Hypoxia = map[string]string{
 	"1010101010101010": "2",
 	"2020202020202020": "12",
@@ -134,7 +136,36 @@ type CSVRecord struct {
 	Value   float64
 }
 
-var mqttClient mqtt.Client
+// EmulatorState для управления состоянием эмулятора
+type EmulatorState struct {
+	IsRunning    bool          `json:"is_running"`
+	DeviceID     string        `json:"device_id"`
+	SelectedKey  string        `json:"selected_key"`
+	DataType     string        `json:"data_type"`
+	Folders      []string      `json:"folders"`
+	CurrentCycle int           `json:"current_cycle"`
+	StartTime    time.Time     `json:"start_time"`
+	Sessions     []SessionInfo `json:"sessions"`
+	ctx          context.Context
+	cancel       context.CancelFunc
+}
+
+// SessionInfo информация о текущем сеансе
+type SessionInfo struct {
+	FolderName       string    `json:"folder_name"`
+	SessionName      string    `json:"session_name"`
+	Status           string    `json:"status"` // "running", "completed", "error"
+	RecordsTotal     int       `json:"records_total"`
+	RecordsProcessed int       `json:"records_processed"`
+	StartTime        time.Time `json:"start_time"`
+}
+
+var (
+	mqttClient    mqtt.Client
+	emulatorState *EmulatorState
+	emulatorMutex sync.RWMutex
+)
+
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
 	fmt.Println("✓ Подключение к MQTT брокеру установлено")
 }
@@ -145,7 +176,7 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 
 func initMQTTClient() error {
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://localhost:1883")
+	opts.AddBroker("tcp://host.docker.internal:1883")
 	opts.SetClientID(fmt.Sprintf("medical-device-%d", time.Now().Unix()))
 	opts.SetAutoReconnect(true)
 	opts.SetCleanSession(true)
@@ -190,12 +221,10 @@ func readCSVFile(filename string) ([]CSVRecord, error) {
 
 	var csvRecords []CSVRecord
 	for i, record := range records {
-		// Пропускаем заголовок и некорректные строки
 		if i == 0 || len(record) < 2 {
 			continue
 		}
 
-		// Пропускаем строки с нечисловыми значениями (на случай старого заголовка)
 		timeSec, errT := strconv.ParseFloat(record[0], 64)
 		value, errV := strconv.ParseFloat(record[1], 64)
 		if errT != nil || errV != nil {
@@ -208,7 +237,6 @@ func readCSVFile(filename string) ([]CSVRecord, error) {
 	return csvRecords, nil
 }
 
-// Новая функция для записи данных в CSV файл
 func writeCSVFile(filename string, records []CSVRecord) error {
 	file, err := os.Create(filename)
 	if err != nil {
@@ -219,12 +247,10 @@ func writeCSVFile(filename string, records []CSVRecord) error {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Записываем заголовок
 	if err := writer.Write([]string{"time_sec", "value"}); err != nil {
 		return fmt.Errorf("не удалось записать заголовок в %s: %v", filename, err)
 	}
 
-	// Записываем данные
 	for _, record := range records {
 		row := []string{
 			strconv.FormatFloat(record.TimeSec, 'f', -1, 64),
@@ -238,30 +264,23 @@ func writeCSVFile(filename string, records []CSVRecord) error {
 	return nil
 }
 
-// Функция для поиска случайного ключа и определения типа данных
 func selectRandomKey() (string, string, []string) {
 	rand.Seed(time.Now().UnixNano())
 
-	// Собираем все ключи из обоих словариков
 	allKeys := make([]string, 0)
 
-	// Добавляем ключи из Regular
 	for key := range Regular {
 		allKeys = append(allKeys, key)
 	}
 
-	// Добавляем ключи из Hypoxia
 	for key := range Hypoxia {
 		allKeys = append(allKeys, key)
 	}
 
-	// Выбираем случайный ключ
 	selectedKey := allKeys[rand.Intn(len(allKeys))]
 
-	// Определяем, в каком словарике найден ключ и получаем папки
 	if folders, found := Regular[selectedKey]; found {
 		folderList := strings.Split(folders, ",")
-		// Сортируем папки по возрастанию
 		sort.Slice(folderList, func(i, j int) bool {
 			a, _ := strconv.Atoi(folderList[i])
 			b, _ := strconv.Atoi(folderList[j])
@@ -272,7 +291,6 @@ func selectRandomKey() (string, string, []string) {
 
 	if folders, found := Hypoxia[selectedKey]; found {
 		folderList := strings.Split(folders, ",")
-		// Сортируем папки по возрастанию
 		sort.Slice(folderList, func(i, j int) bool {
 			a, _ := strconv.Atoi(folderList[i])
 			b, _ := strconv.Atoi(folderList[j])
@@ -281,11 +299,9 @@ func selectRandomKey() (string, string, []string) {
 		return selectedKey, "hypoxia", folderList
 	}
 
-	// Это не должно произойти, но на всякий случай
 	return selectedKey, "unknown", []string{}
 }
 
-// Функция поиска файлов из старой логики, адаптированная для новых папок
 func findPairedFilesInFolder(bpmDir, uterusDir string) ([][2]string, error) {
 	re := regexp.MustCompile(`^([\d\-]+)_(\d+)\.csv$`)
 
@@ -297,11 +313,10 @@ func findPairedFilesInFolder(bpmDir, uterusDir string) ([][2]string, error) {
 		}
 
 		for _, f := range files {
-			// Игнорируем уже исправленные файлы
 			if !f.IsDir() && !strings.HasSuffix(f.Name(), "_fixed.csv") {
 				match := re.FindStringSubmatch(f.Name())
 				if match != nil && len(match) > 1 {
-					key := match[1] // Используем дату как ключ
+					key := match[1]
 					fileMap[key] = filepath.Join(dir, f.Name())
 				}
 			}
@@ -337,7 +352,6 @@ func findPairedFilesInFolder(bpmDir, uterusDir string) ([][2]string, error) {
 	return pairedFiles, nil
 }
 
-// --- Функция для нормализации и сохранения файлов ---
 func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 	bpmRecords, err := readCSVFile(bpmPath)
 	if err != nil {
@@ -349,7 +363,6 @@ func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 		return "", "", err
 	}
 
-	// Создаем карты для быстрого доступа к значениям по времени
 	bpmMap := make(map[float64]float64)
 	for _, r := range bpmRecords {
 		bpmMap[r.TimeSec] = r.Value
@@ -360,7 +373,6 @@ func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 		uterusMap[r.TimeSec] = r.Value
 	}
 
-	// Собираем все уникальные временные метки из обоих файлов
 	allTimestampsMap := make(map[float64]bool)
 	for t := range bpmMap {
 		allTimestampsMap[t] = true
@@ -370,7 +382,6 @@ func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 		allTimestampsMap[t] = true
 	}
 
-	// Конвертируем карту в слайс и сортируем
 	var sortedTimestamps []float64
 	for t := range allTimestampsMap {
 		sortedTimestamps = append(sortedTimestamps, t)
@@ -378,17 +389,14 @@ func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 
 	sort.Float64s(sortedTimestamps)
 
-	// Создаем новые, нормализованные записи
 	var fixedBPM, fixedUterus []CSVRecord
 	for _, ts := range sortedTimestamps {
-		// Для BPM
 		if val, ok := bpmMap[ts]; ok {
 			fixedBPM = append(fixedBPM, CSVRecord{TimeSec: ts, Value: val})
 		} else {
 			fixedBPM = append(fixedBPM, CSVRecord{TimeSec: ts, Value: -1})
 		}
 
-		// Для Uterus
 		if val, ok := uterusMap[ts]; ok {
 			fixedUterus = append(fixedUterus, CSVRecord{TimeSec: ts, Value: val})
 		} else {
@@ -396,11 +404,9 @@ func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 		}
 	}
 
-	// Создаем имена для новых файлов
 	fixedBPMPath := strings.Replace(bpmPath, ".csv", "_fixed.csv", 1)
 	fixedUterusPath := strings.Replace(uterusPath, ".csv", "_fixed.csv", 1)
 
-	// Записываем нормализованные данные в новые файлы
 	if err := writeCSVFile(fixedBPMPath, fixedBPM); err != nil {
 		return "", "", err
 	}
@@ -413,9 +419,12 @@ func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 	return fixedBPMPath, fixedUterusPath, nil
 }
 
-// --- ИСПРАВЛЕННАЯ функция эмуляции с правильными endpoint топиками ---
-func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float64, wg *sync.WaitGroup) {
-	defer wg.Done()
+func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float64, sessionIndex int) error {
+	select {
+	case <-emulatorState.ctx.Done():
+		return fmt.Errorf("эмуляция остановлена")
+	default:
+	}
 
 	var bpmRecords, uterusRecords []CSVRecord
 	var readErrBPM, readErrUterus error
@@ -435,13 +444,21 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 	readWg.Wait()
 
 	if readErrBPM != nil || readErrUterus != nil {
-		log.Printf("Ошибка чтения одного из файлов для сеанса %s. Пропуск.", filepath.Base(bpmFile))
-		return
+		emulatorMutex.Lock()
+		if sessionIndex < len(emulatorState.Sessions) {
+			emulatorState.Sessions[sessionIndex].Status = "error"
+		}
+		emulatorMutex.Unlock()
+		return fmt.Errorf("ошибка чтения файлов")
 	}
 
 	if len(bpmRecords) == 0 || len(uterusRecords) == 0 {
-		log.Printf("Сеанс для %s пропущен: один из файлов пуст.", filepath.Base(bpmFile))
-		return
+		emulatorMutex.Lock()
+		if sessionIndex < len(emulatorState.Sessions) {
+			emulatorState.Sessions[sessionIndex].Status = "error"
+		}
+		emulatorMutex.Unlock()
+		return fmt.Errorf("один из файлов пуст")
 	}
 
 	numRecords := len(bpmRecords)
@@ -449,17 +466,31 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 		numRecords = len(uterusRecords)
 	}
 
+	// Обновляем статус сеанса
+	emulatorMutex.Lock()
+	if sessionIndex < len(emulatorState.Sessions) {
+		emulatorState.Sessions[sessionIndex].Status = "running"
+		emulatorState.Sessions[sessionIndex].RecordsTotal = numRecords
+		emulatorState.Sessions[sessionIndex].StartTime = time.Now()
+	}
+	emulatorMutex.Unlock()
+
 	fmt.Printf("✅ Сеанс %s начат. Записей для обработки: %d\n", filepath.Base(bpmFile), numRecords)
 
 	for i := 0; i < numRecords; i++ {
+		select {
+		case <-emulatorState.ctx.Done():
+			return fmt.Errorf("эмуляция остановлена")
+		default:
+		}
+
 		var wgPublish sync.WaitGroup
 		wgPublish.Add(2)
 
-		// 🔥 ИСПРАВЛЕНО: Отправляем FHR данные с правильным endpoint топиком
 		go func(record CSVRecord) {
 			defer wgPublish.Done()
 			if record.Value == -1 {
-				return // Не отправляем "пустые" значения
+				return
 			}
 
 			data := MedicalData{
@@ -471,7 +502,6 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 				TimeSec:   record.TimeSec,
 			}
 
-			// 🔥 ПРАВИЛЬНЫЙ ENDPOINT ТОПИК: medical/ctg/fetal_heart_rate/{deviceID}
 			topic := fmt.Sprintf("medical/ctg/fetal_heart_rate/%s", deviceID)
 			if err := publishMQTT(topic, data); err != nil {
 				log.Printf("Ошибка отправки FHR: %v", err)
@@ -480,11 +510,10 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 			}
 		}(bpmRecords[i])
 
-		// 🔥 ИСПРАВЛЕНО: Отправляем UC данные с правильным endpoint топиком
 		go func(record CSVRecord) {
 			defer wgPublish.Done()
 			if record.Value == -1 {
-				return // Не отправляем "пустые" значения
+				return
 			}
 
 			data := MedicalData{
@@ -496,7 +525,6 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 				TimeSec:   record.TimeSec,
 			}
 
-			// 🔥 ПРАВИЛЬНЫЙ ENDPOINT ТОПИК: medical/ctg/uterine_contractions/{deviceID}
 			topic := fmt.Sprintf("medical/ctg/uterine_contractions/%s", deviceID)
 			if err := publishMQTT(topic, data); err != nil {
 				log.Printf("Ошибка отправки UC: %v", err)
@@ -507,55 +535,174 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 
 		wgPublish.Wait()
 
+		// Обновляем прогресс
+		emulatorMutex.Lock()
+		if sessionIndex < len(emulatorState.Sessions) {
+			emulatorState.Sessions[sessionIndex].RecordsProcessed = i + 1
+		}
+		emulatorMutex.Unlock()
+
 		if i < numRecords-1 {
 			sleepSeconds := (bpmRecords[i+1].TimeSec - bpmRecords[i].TimeSec) / speedMultiplier
 			if sleepSeconds > 0 {
-				time.Sleep(time.Duration(sleepSeconds * float64(time.Second)))
+				sleepDuration := time.Duration(sleepSeconds * float64(time.Second))
+
+				select {
+				case <-time.After(sleepDuration):
+				case <-emulatorState.ctx.Done():
+					return fmt.Errorf("эмуляция остановлена")
+				}
 			}
 		}
 	}
+
+	// Отмечаем сеанс как завершенный
+	emulatorMutex.Lock()
+	if sessionIndex < len(emulatorState.Sessions) {
+		emulatorState.Sessions[sessionIndex].Status = "completed"
+	}
+	emulatorMutex.Unlock()
+
+	return nil
 }
 
-// Главная функция - ОБЪЕДИНЕННАЯ ЛОГИКА
-func main() {
-	log.SetFlags(log.LstdFlags)
-	fmt.Println("=== ЭМУЛЯТОР МЕДИЦИНСКОГО ОБОРУДОВАНИЯ v6.0 (ОБЪЕДИНЕННАЯ ВЕРСИЯ) ===")
+// === HTTP API для управления эмулятором ===
 
-	if err := initMQTTClient(); err != nil {
-		log.Fatalf("Не удалось инициализировать MQTT клиент: %v", err)
+func enableCORS(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+}
+
+func getStatusHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	if r.Method == "OPTIONS" {
+		return
 	}
-	defer mqttClient.Disconnect(250)
 
+	emulatorMutex.RLock()
+	response := *emulatorState
+	emulatorMutex.RUnlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func startEmulatorHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	emulatorMutex.Lock()
+	defer emulatorMutex.Unlock()
+
+	if emulatorState.IsRunning {
+		http.Error(w, "Эмулятор уже запущен", http.StatusConflict)
+		return
+	}
+
+	// Инициализируем новую сессию
+	selectedKey, dataType, folders := selectRandomKey()
 	deviceID := fmt.Sprintf("CTG-MONITOR-%04d", 1+time.Now().Unix()%9998)
 
-	// 1. НОВАЯ ЛОГИКА: Выбираем случайного человека из словариков
-	selectedKey, dataType, folders := selectRandomKey()
-	fmt.Printf("🎲 Выбран случайный ключ: %s\n", selectedKey)
-	fmt.Printf("📂 Тип данных: %s\n", dataType)
-	fmt.Printf("📁 Папки для обработки: %v\n", folders)
+	ctx, cancel := context.WithCancel(context.Background())
 
-	// 2. СТАРАЯ ЛОГИКА: Выводим правильные endpoint топики
-	fmt.Printf("🔧 Device ID: %s\n", deviceID)
-	fmt.Printf("📡 MQTT endpoint топики:\n")
-	fmt.Printf(" • medical/ctg/fetal_heart_rate/%s\n", deviceID)
-	fmt.Printf(" • medical/ctg/uterine_contractions/%s\n\n", deviceID)
+	emulatorState.IsRunning = true
+	emulatorState.DeviceID = deviceID
+	emulatorState.SelectedKey = selectedKey
+	emulatorState.DataType = dataType
+	emulatorState.Folders = folders
+	emulatorState.CurrentCycle = 0
+	emulatorState.StartTime = time.Now()
+	emulatorState.Sessions = []SessionInfo{}
+	emulatorState.ctx = ctx
+	emulatorState.cancel = cancel
 
-	// 3. ИСПРАВЛЕННАЯ ЛОГИКА: Обрабатываем каждую папку по порядку с правильными путями
+	// Запускаем эмулятор в отдельной горутине
+	go runEmulator()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":       "started",
+		"device_id":    deviceID,
+		"selected_key": selectedKey,
+		"data_type":    dataType,
+		"folders":      folders,
+	})
+}
+
+func stopEmulatorHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w)
+	if r.Method == "OPTIONS" {
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	emulatorMutex.Lock()
+	defer emulatorMutex.Unlock()
+
+	if !emulatorState.IsRunning {
+		http.Error(w, "Эмулятор не запущен", http.StatusConflict)
+		return
+	}
+
+	emulatorState.cancel()
+	emulatorState.IsRunning = false
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "stopped"})
+}
+
+func runEmulator() {
+	defer func() {
+		emulatorMutex.Lock()
+		emulatorState.IsRunning = false
+		emulatorMutex.Unlock()
+	}()
+
 	for {
-		fmt.Println("\n🔄 Начинаем новый цикл обработки...")
+		select {
+		case <-emulatorState.ctx.Done():
+			fmt.Println("\n🛑 Эмуляция остановлена пользователем")
+			return
+		default:
+		}
+
+		emulatorMutex.Lock()
+		emulatorState.CurrentCycle++
+		cycle := emulatorState.CurrentCycle
+		folders := emulatorState.Folders
+		dataType := emulatorState.DataType
+		deviceID := emulatorState.DeviceID
+		emulatorMutex.Unlock()
+
+		fmt.Printf("\n🔄 Начинаем цикл обработки #%d...\n", cycle)
 
 		for _, folder := range folders {
+			select {
+			case <-emulatorState.ctx.Done():
+				return
+			default:
+			}
+
 			fmt.Printf("\n==================== ОБРАБОТКА ПАПКИ %s ====================\n", folder)
 
 			var bpmDir, uterusDir string
 
-			// ИСПРАВЛЕНО: Правильные пути к папкам
 			if dataType == "regular" {
-				// Для regular данные лежат в ./data/regular/[номер_папки]/bpm и ./data/regular/[номер_папки]/uterus
 				bpmDir = filepath.Join("./data/regular", folder, "bpm")
 				uterusDir = filepath.Join("./data/regular", folder, "uterus")
 			} else if dataType == "hypoxia" {
-				// Для hypoxia данные лежат в ./data/hypoxia/[номер_папки]/bpm и ./data/hypoxia/[номер_папки]/uterus
 				bpmDir = filepath.Join("./data/hypoxia", folder, "bpm")
 				uterusDir = filepath.Join("./data/hypoxia", folder, "uterus")
 			} else {
@@ -563,7 +710,6 @@ func main() {
 				continue
 			}
 
-			// Проверяем существование директорий
 			if _, err := os.Stat(bpmDir); os.IsNotExist(err) {
 				log.Printf("Папка BPM не существует: %s. Пропускаем.", bpmDir)
 				continue
@@ -573,7 +719,6 @@ func main() {
 				continue
 			}
 
-			// Находим парные файлы в текущей папке
 			pairedFiles, err := findPairedFilesInFolder(bpmDir, uterusDir)
 			if err != nil || len(pairedFiles) == 0 {
 				log.Printf("Не найдены парные файлы в папке %s. Пропускаем.", folder)
@@ -582,7 +727,6 @@ func main() {
 
 			fmt.Printf("📂 Найдено %d парных сеансов в папке %s.\n", len(pairedFiles), folder)
 
-			// Нормализуем каждую пару и собираем пути к новым файлам
 			var normalizedFiles [][2]string
 			for _, pair := range pairedFiles {
 				fixedBPM, fixedUterus, err := normalizeAndSavePair(pair[0], pair[1])
@@ -598,26 +742,484 @@ func main() {
 				continue
 			}
 
+			// Добавляем сеансы в состояние
+			emulatorMutex.Lock()
+			sessionStartIndex := len(emulatorState.Sessions)
+			for _, pair := range normalizedFiles {
+				emulatorState.Sessions = append(emulatorState.Sessions, SessionInfo{
+					FolderName:  folder,
+					SessionName: filepath.Base(pair[0]),
+					Status:      "pending",
+				})
+			}
+			emulatorMutex.Unlock()
+
 			fmt.Printf("🔄 Нормализация завершена для папки %s. Готово к эмуляции %d сеансов.\n", folder, len(normalizedFiles))
 
-			// Запускаем эмуляцию для всех сеансов в текущей папке
-			for _, pair := range normalizedFiles {
+			for i, pair := range normalizedFiles {
+				select {
+				case <-emulatorState.ctx.Done():
+					return
+				default:
+				}
+
+				sessionIndex := sessionStartIndex + i
 				fmt.Printf("\n🚀 НАЧАЛО СЕАНСА КТГ (%s)\n", filepath.Base(pair[0]))
-				var wg sync.WaitGroup
-				wg.Add(1)
-				go emulateSession(pair[0], pair[1], deviceID, 1.0, &wg)
-				wg.Wait()
-				fmt.Printf("✅ СЕАНС КТГ %s ЗАВЕРШЕН\n", filepath.Base(pair[0]))
+
+				if err := emulateSession(pair[0], pair[1], deviceID, 1.0, sessionIndex); err != nil {
+					fmt.Printf("❌ ОШИБКА в сеансе КТГ %s: %v\n", filepath.Base(pair[0]), err)
+					if err.Error() == "эмуляция остановлена" {
+						return
+					}
+				} else {
+					fmt.Printf("✅ СЕАНС КТГ %s ЗАВЕРШЕН\n", filepath.Base(pair[0]))
+				}
+
 				fmt.Println("⏸️ Пауза 5 секунд перед следующим сеансом...")
-				time.Sleep(5 * time.Second)
+				select {
+				case <-time.After(5 * time.Second):
+				case <-emulatorState.ctx.Done():
+					return
+				}
 			}
 
 			fmt.Printf("==================== ПАПКА %s ЗАВЕРШЕНА ====================\n", folder)
 			fmt.Println("⏸️ Пауза 10 секунд перед следующей папкой...")
-			time.Sleep(10 * time.Second)
+			select {
+			case <-time.After(10 * time.Second):
+			case <-emulatorState.ctx.Done():
+				return
+			}
 		}
 
 		fmt.Println("\n🏁 Все папки завершены. Начинаем цикл заново через 15 секунд.")
-		time.Sleep(15 * time.Second)
+		select {
+		case <-time.After(15 * time.Second):
+		case <-emulatorState.ctx.Done():
+			return
+		}
+	}
+}
+
+func webInterfaceHandler(w http.ResponseWriter, r *http.Request) {
+	html := `
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>КТГ Эмулятор - Панель управления</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .content {
+            padding: 30px;
+        }
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid #e9ecef;
+        }
+        .card h3 {
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 5px;
+            text-transform: uppercase;
+        }
+        .btn-start {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+        }
+        .btn-start:hover:not(:disabled) {
+            background: linear-gradient(135deg, #45a049, #4CAF50);
+            transform: translateY(-2px);
+        }
+        .btn-stop {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: white;
+        }
+        .btn-stop:hover:not(:disabled) {
+            background: linear-gradient(135deg, #d32f2f, #f44336);
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .status.running {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.stopped {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+        .status.running .status-indicator {
+            background: #28a745;
+        }
+        .status.stopped .status-indicator {
+            background: #dc3545;
+            animation: none;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .info-label {
+            font-weight: 600;
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            color: #333;
+            font-size: 1.1em;
+        }
+        .sessions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .sessions-table th,
+        .sessions-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .sessions-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        .session-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .session-status.pending { background: #fff3cd; color: #856404; }
+        .session-status.running { background: #d1ecf1; color: #0c5460; }
+        .session-status.completed { background: #d4edda; color: #155724; }
+        .session-status.error { background: #f8d7da; color: #721c24; }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            transition: width 0.3s ease;
+        }
+        .logs {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 КТГ Эмулятор</h1>
+            <p>Панель управления медицинскими данными</p>
+        </div>
+        
+        <div class="content">
+            <div class="control-panel">
+                <div class="card">
+                    <h3>🎮 Управление эмулятором</h3>
+                    <div id="status" class="status stopped">
+                        <div class="status-indicator"></div>
+                        <span>Эмулятор остановлен</span>
+                    </div>
+                    <button id="startBtn" class="btn btn-start">▶️ Запустить эмуляцию</button>
+                    <button id="stopBtn" class="btn btn-stop" disabled>⏹️ Остановить эмуляцию</button>
+                </div>
+                
+                <div class="card">
+                    <h3>📊 Текущая статистика</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Устройство</div>
+                            <div class="info-value" id="deviceId">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Тип данных</div>
+                            <div class="info-value" id="dataType">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Цикл</div>
+                            <div class="info-value" id="currentCycle">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Время работы</div>
+                            <div class="info-value" id="uptime">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>📋 Активные сеансы</h3>
+                <table class="sessions-table">
+                    <thead>
+                        <tr>
+                            <th>Папка</th>
+                            <th>Сеанс</th>
+                            <th>Статус</th>
+                            <th>Прогресс</th>
+                            <th>Время</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsTable">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #6c757d; padding: 40px;">
+                                Нет активных сеансов
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const status = document.getElementById('status');
+        
+        function updateStatus(data) {
+            const isRunning = data.is_running;
+            
+            if (isRunning) {
+                status.className = 'status running';
+                status.innerHTML = '<div class="status-indicator"></div><span>Эмулятор работает</span>';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                status.className = 'status stopped';
+                status.innerHTML = '<div class="status-indicator"></div><span>Эмулятор остановлен</span>';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+            
+            document.getElementById('deviceId').textContent = data.device_id || '-';
+            document.getElementById('dataType').textContent = data.data_type || '-';
+            document.getElementById('currentCycle').textContent = data.current_cycle || '-';
+            
+            // Обновляем время работы
+            if (data.start_time && isRunning) {
+                const startTime = new Date(data.start_time);
+                const now = new Date();
+                const diff = now - startTime;
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+                document.getElementById('uptime').textContent = 
+                    hours.toString().padStart(2, '0') + ':' + 
+                    minutes.toString().padStart(2, '0') + ':' + 
+                    seconds.toString().padStart(2, '0');
+            } else {
+                document.getElementById('uptime').textContent = '-';
+            }
+            
+            updateSessionsTable(data.sessions || []);
+        }
+        
+        function updateSessionsTable(sessions) {
+            const tbody = document.getElementById('sessionsTable');
+            
+            if (sessions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #6c757d; padding: 40px;">Нет активных сеансов</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = sessions.map(session => {
+                const progress = session.records_total > 0 ? 
+                    Math.round((session.records_processed / session.records_total) * 100) : 0;
+                
+                const startTime = session.start_time ? 
+                    new Date(session.start_time).toLocaleTimeString() : '-';
+                
+                return '<tr>' +
+                    '<td>' + session.folder_name + '</td>' +
+                    '<td>' + session.session_name + '</td>' +
+                    '<td><span class="session-status ' + session.status + '">' + session.status + '</span></td>' +
+                    '<td>' +
+                        '<div class="progress-bar">' +
+                            '<div class="progress-fill" style="width: ' + progress + '%"></div>' +
+                        '</div>' +
+                        '<small>' + session.records_processed + '/' + session.records_total + ' (' + progress + '%)</small>' +
+                    '</td>' +
+                    '<td>' + startTime + '</td>' +
+                '</tr>';
+            }).join('');
+        }
+        
+        startBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/start', { method: 'POST' });
+                if (!response.ok) {
+                    const error = await response.text();
+                    alert('Ошибка запуска: ' + error);
+                }
+            } catch (error) {
+                alert('Ошибка подключения: ' + error.message);
+            }
+        });
+        
+        stopBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/stop', { method: 'POST' });
+                if (!response.ok) {
+                    const error = await response.text();
+                    alert('Ошибка остановки: ' + error);
+                }
+            } catch (error) {
+                alert('Ошибка подключения: ' + error.message);
+            }
+        });
+        
+        // Периодическое обновление статуса
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateStatus(data);
+                }
+            } catch (error) {
+                console.error('Ошибка получения статуса:', error);
+            }
+        }
+        
+        // Первоначальная загрузка и периодическое обновление
+        fetchStatus();
+        setInterval(fetchStatus, 2000);
+    </script>
+</body>
+</html>
+`
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(html))
+}
+
+func main() {
+	log.SetFlags(log.LstdFlags)
+	fmt.Println("=== ЭМУЛЯТОР МЕДИЦИНСКОГО ОБОРУДОВАНИЯ v7.0 (с Web UI) ===")
+
+	// Инициализируем состояние эмулятора
+	emulatorState = &EmulatorState{
+		IsRunning: false,
+		Sessions:  []SessionInfo{},
+	}
+
+	if err := initMQTTClient(); err != nil {
+		log.Fatalf("Не удалось инициализировать MQTT клиент: %v", err)
+	}
+	defer mqttClient.Disconnect(250)
+
+	// Настраиваем HTTP сервер
+	http.HandleFunc("/", webInterfaceHandler)
+	http.HandleFunc("/api/status", getStatusHandler)
+	http.HandleFunc("/api/start", startEmulatorHandler)
+	http.HandleFunc("/api/stop", stopEmulatorHandler)
+
+	fmt.Println("🌐 Web интерфейс доступен на: http://localhost:8081")
+	fmt.Println("📊 API endpoints:")
+	fmt.Println("  GET  /api/status  - получить статус эмулятора")
+	fmt.Println("  POST /api/start   - запустить эмуляцию")
+	fmt.Println("  POST /api/stop    - остановить эмуляцию")
+	fmt.Println()
+
+	if err := http.ListenAndServe("0.0.0.0:8081", nil); err != nil {
+		log.Fatalf("Не удалось запустить HTTP сервер: %v", err)
 	}
 }
