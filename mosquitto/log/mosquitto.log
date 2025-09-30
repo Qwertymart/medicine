@@ -270,3 +270,13 @@
 1759167310: New connection from 172.20.0.4:37592 on port 1883.
 1759167310: New client connected from 172.20.0.4:37592 as ctg_monitor_service (p2, c1, k30, u'ctg_mqtt_user').
 1759167417: Client medical-device-1759167310 closed its connection.
+1759249548: mosquitto version 2.0.22 starting
+1759249548: Config loaded from /mosquitto/config/mosquitto.conf.
+1759249548: Opening ipv4 listen socket on port 1883.
+1759249548: Opening ipv6 listen socket on port 1883.
+1759249548: Opening websockets listen socket on port 9001.
+1759249548: mosquitto version 2.0.22 running
+1759249549: New connection from 192.168.65.1:33783 on port 1883.
+1759249549: New client connected from 192.168.65.1:33783 as medical-device-1759249549 (p2, c1, k30).
+1759249549: New connection from 172.19.0.7:52814 on port 1883.
+1759249549: New client connected from 172.19.0.7:52814 as ctg_monitor_service (p2, c1, k30, u'ctg_mqtt_user').

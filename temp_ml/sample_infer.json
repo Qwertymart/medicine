@@ -1,0 +1,28 @@
+{
+  "patient_id": "DEMO",
+  "t_sec": 960,
+  "fs_hz": 8,
+  "available_windows": ["240s","600s","900s"],
+  "features": {
+    "f_240s_fhr_mean": 140.0, "f_240s_fhr_std": 5.0, "f_240s_fhr_min": 120.0,
+    "f_240s_fhr_max": 160.0, "f_240s_fhr_iqr": 8.0, "f_240s_fhr_rmssd": 2.4,
+    "f_240s_fhr_abs_dev": 3.2, "f_240s_fhr_brady_len": 0.0, "f_240s_fhr_tachy_len": 12.0,
+    "f_240s_uc_mean": 6.0, "f_240s_uc_std": 2.0, "f_240s_uc_max": 18.0, "f_240s_uc_iqr": 3.0,
+    "f_240s_uc_peak_cnt": 1, "f_240s_uc_area": 20.0, "f_240s_fhr_decel_cnt": 0,
+    "f_240s_xcorr_maxabs": 0.22, "f_240s_xcorr_lag": 5.0,
+
+    "f_600s_fhr_mean": 141.0, "f_600s_fhr_std": 5.5, "f_600s_fhr_min": 118.0,
+    "f_600s_fhr_max": 162.0, "f_600s_fhr_iqr": 9.0, "f_600s_fhr_rmssd": 2.7,
+    "f_600s_fhr_abs_dev": 3.3, "f_600s_fhr_brady_len": 0.0, "f_600s_fhr_tachy_len": 30.0,
+    "f_600s_uc_mean": 6.5, "f_600s_uc_std": 2.3, "f_600s_uc_max": 19.0, "f_600s_uc_iqr": 3.2,
+    "f_600s_uc_peak_cnt": 2, "f_600s_uc_area": 46.0, "f_600s_fhr_decel_cnt": 0,
+    "f_600s_xcorr_maxabs": 0.25, "f_600s_xcorr_lag": 6.0,
+
+    "f_900s_fhr_mean": 142.0, "f_900s_fhr_std": 6.2, "f_900s_fhr_min": 116.0,
+    "f_900s_fhr_max": 164.0, "f_900s_fhr_iqr": 9.5, "f_900s_fhr_rmssd": 2.9,
+    "f_900s_fhr_abs_dev": 3.6, "f_900s_fhr_brady_len": 0.0, "f_900s_fhr_tachy_len": 45.0,
+    "f_900s_uc_mean": 7.0, "f_900s_uc_std": 2.5, "f_900s_uc_max": 20.0, "f_900s_uc_iqr": 3.4,
+    "f_900s_uc_peak_cnt": 3, "f_900s_uc_area": 70.0, "f_900s_fhr_decel_cnt": 0,
+    "f_900s_xcorr_maxabs": 0.28, "f_900s_xcorr_lag": 7.0
+  }
+}

@@ -13,8 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - ctg-network
+    networks: [ctg-network]
 
   mosquitto:
     image: eclipse-mosquitto:2.0
@@ -27,13 +26,10 @@ services:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
-    networks:
-      - ctg-network
+    networks: [ctg-network]
 
   ctg-emulator:
-    build:
-      context: ./medicine_emulator
-      dockerfile: Dockerfile
+    build: { context: ./medicine_emulator , dockerfile: Dockerfile }
     image: ctg-emulator:latest
     container_name: ctg_emulator_service
     restart: unless-stopped
@@ -41,69 +37,89 @@ services:
       - "8081:8081"
     volumes:
       - ./medicine_emulator/data:/app/data
-    depends_on:
-      - mosquitto
+    depends_on: [mosquitto]
     environment:
-      # ИСПРАВЛЕННАЯ конфигурация MQTT
-      - MQTT_BROKER=tcp://mosquitto:1883  # Используем DNS имя сервиса
-      - MQTT_HOST=mosquitto               # Альтернативная переменная
+      - MQTT_BROKER=tcp://mosquitto:1883
+      - MQTT_HOST=mosquitto
       - MQTT_PORT=1883
       - MQTT_CLIENT_ID=ctg_emulator
       - MQTT_USERNAME=ctg_mqtt_user
       - MQTT_PASSWORD=ctg_mqtt_password
-    networks:
-      - ctg-network
-    # Добавляем extra_hosts для совместимости (если эмулятор использует host.docker.internal)
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks: [ctg-network]
 
   ctg-monitor:
-    build:
-      context: ./CTG_monitor
-      dockerfile: Dockerfile
+    build: { context: ./CTG_monitor , dockerfile: Dockerfile }
     image: ctg-monitor:latest
     container_name: ctg_monitor_service
     restart: unless-stopped
     ports:
       - "8080:8080"
       - "50051:50051"
-    depends_on:
-      - postgres
-      - mosquitto
+    depends_on: [postgres, mosquitto, ml-service]
     environment:
-      # Database Configuration
-      - DB_HOST=postgres                    # Используем DNS имя сервиса
+      # DB
+      - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - DB_SSLMODE=disable
       - DB_TIMEZONE=Europe/Moscow
-
-      # MQTT Configuration
-      - MQTT_BROKER=tcp://mosquitto:1883    # Используем DNS имя сервиса
-      - MQTT_HOST=mosquitto                 # Альтернативная переменная
+      # MQTT
+      - MQTT_BROKER=tcp://mosquitto:1883
+      - MQTT_HOST=mosquitto
       - MQTT_PORT=1883
       - MQTT_CLIENT_ID=ctg_monitor_service
       - MQTT_USERNAME=ctg_mqtt_user
       - MQTT_PASSWORD=ctg_mqtt_password
       - MQTT_QOS=1
-
-      # Application Configuration
+      # App
       - HTTP_PORT=8080
       - GRPC_PORT=50051
       - LOG_LEVEL=info
       - BUFFER_SIZE=100
       - BUFFER_FLUSH_INTERVAL=10
       - MAX_BUFFER_SIZE=1000
-    networks:
-      - ctg-network
-    # Добавляем health check
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD","wget","--no-verbose","--tries=1","--spider","http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    networks: [ctg-network]
+
+  temp-ml:
+    build: { context: ./temp_ml , dockerfile: Dockerfile }
+    image: temp-ml:latest
+    container_name: temp_ml_service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./temp_ml/out:/app/out
+    environment:
+      - OUT_DIR=/app/out
+      - PORT=8000
+    networks: [ctg-network]
+
+  ml-service:
+    build: { context: ./ml-service , dockerfile: Dockerfile }
+    image: ctg-ml:latest
+    container_name: ctg_ml_service
+    restart: unless-stopped
+    ports:
+      - "8052:8052"
+    depends_on: [postgres, temp-ml]
+    environment:
+      - PORT=8082
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - ML_SERVICE_URL=http://temp-ml:8000  # внутреннее DNS-имя
+    networks: [ctg-network]
 
 networks:
   ctg-network:

@@ -1,0 +1,23 @@
+{
+  "features": [
+    "f_900s_fhr_mean",
+    "f_900s_fhr_std",
+    "f_900s_fhr_min",
+    "f_900s_fhr_max",
+    "f_900s_fhr_iqr",
+    "f_900s_fhr_rmssd",
+    "f_900s_fhr_abs_dev",
+    "f_900s_fhr_brady_len",
+    "f_900s_fhr_tachy_len",
+    "f_900s_uc_mean",
+    "f_900s_uc_std",
+    "f_900s_uc_max",
+    "f_900s_uc_iqr",
+    "f_900s_uc_peak_cnt",
+    "f_900s_uc_area",
+    "f_900s_fhr_decel_cnt",
+    "f_900s_xcorr_maxabs",
+    "f_900s_xcorr_lag"
+  ],
+  "threshold": 0.0004490541518546731
+}
