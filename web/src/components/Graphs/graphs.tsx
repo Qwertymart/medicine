@@ -187,7 +187,7 @@ export function Graphs({dataType, title, color}: GraphsProps) {
 
         const mainData = filteredData.map((point) => (point.value !== -1 ? point.value : null));
         const now = Date.now();
-        const timeWindow = 15 * 60 * 1000;
+        const timeWindow = 30 * 60 * 1000;
 
         return {
             data: {
