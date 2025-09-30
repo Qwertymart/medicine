@@ -11,7 +11,7 @@ const b = block('widget3');
 export const Widget3 = () => {
     const [trendText, setTrendText] = useState<string>('');
     const [summaryText, setSummaryText] = useState<string>('');
-    const [loading, setLoading] = useState<boolean>(false);
+    const [, setLoading] = useState<boolean>(false);
     const [healthStatus, setHealthStatus] = useState<string>('Проверка...');
     const {cardId, isConnected} = useSession();
     const sessionStartRef = useRef<number | null>(null);
