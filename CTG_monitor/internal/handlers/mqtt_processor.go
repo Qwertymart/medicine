@@ -19,15 +19,14 @@ import (
 
 // SpikeDetectionFilter специальный фильтр для детекции единичных выбросов
 type SpikeDetectionFilter struct {
-	// Буферы для анализа контекста
-	fhrBuffer  []float64 // Последние N значений ЧСС
-	ucBuffer   []float64 // Последние N значений сокращений
-	bufferSize int       // Размер буфера для анализа контекста
+	fhrBuffer  []float64
+	ucBuffer   []float64
+	bufferSize int
 
 	// Параметры детекции спайков
-	spikeDeviation  float64 // Минимальное отклонение для детекции спайка
-	contextWindow   int     // Размер окна для анализа контекста (соседние точки)
-	spikeConfidence float64 // Уровень уверенности для детекции спайка
+	spikeDeviation  float64
+	contextWindow   int
+	spikeConfidence float64
 
 	// Статистика
 	totalProcessed int
@@ -39,12 +38,12 @@ type SpikeDetectionFilter struct {
 // NewSpikeDetectionFilter создает новый фильтр спайков
 func NewSpikeDetectionFilter() *SpikeDetectionFilter {
 	return &SpikeDetectionFilter{
-		fhrBuffer:       make([]float64, 0, 20), // Буфер на 20 значений
+		fhrBuffer:       make([]float64, 0, 20),
 		ucBuffer:        make([]float64, 0, 20),
 		bufferSize:      20,
-		spikeDeviation:  8.0, // Минимальное отклонение 8 единиц для спайка
-		contextWindow:   3,   // Анализируем 3 точки до и после
-		spikeConfidence: 0.7, // 70% уверенности для фильтрации
+		spikeDeviation:  8.0,
+		contextWindow:   3,
+		spikeConfidence: 0.7,
 	}
 }
 
@@ -88,20 +87,19 @@ func NewMQTTStreamProcessor(
 
 	// Запуск воркеров
 	processor.wg.Add(3)
-	go processor.dataWorker()   // Обработка данных
-	go processor.grpcWorker()   // gRPC стриминг
-	go processor.bufferWorker() // Буферизация
+	go processor.dataWorker()
+	go processor.grpcWorker()
+	go processor.bufferWorker()
 
-	log.Println("🚀 MQTT Stream Processor со СПЕЦИАЛЬНОЙ фильтрацией единичных выбросов запущен")
+	log.Println("MQTT Stream Processor со СПЕЦИАЛЬНОЙ фильтрацией единичных выбросов запущен")
 	return processor
 }
 
 // HandleIncomingMQTT главный обработчик MQTT сообщений
 func (p *MQTTStreamProcessor) HandleIncomingMQTT(topic string, payload []byte) {
-	// Парсинг топика: medical/ctg/{datatype}/{deviceID}
 	parts := strings.Split(topic, "/")
 	if len(parts) != 4 {
-		log.Printf("⚠️ Неверный формат топика: %s", topic)
+		log.Printf("Неверный формат топика: %s", topic)
 		return
 	}
 
@@ -110,27 +108,25 @@ func (p *MQTTStreamProcessor) HandleIncomingMQTT(topic string, payload []byte) {
 	// Парсинг JSON
 	var data models.MedicalData
 	if err := json.Unmarshal(payload, &data); err != nil {
-		log.Printf("❌ Ошибка парсинга MQTT payload: %v", err)
+		log.Printf("Ошибка парсинга MQTT payload: %v", err)
 		return
 	}
 
-	// Заполнение из топика, если не указано
 	data.DeviceID = p.sessionManager.GetAllDevices()[0]
 	if data.DataType == "" {
 		data.DataType = dataType
 	}
 
-	// Отправляем в канал для обработки
 	select {
 	case p.dataChannel <- &data:
 	default:
-		log.Printf("⚠️ Канал данных переполнен, пропускаем сообщение")
+		log.Printf("Канал данных переполнен, пропускаем сообщение")
 	}
 }
 
 // MessageHandler обработчик MQTT сообщений (глобальная функция)
 func MessageHandler(client mqtt.Client, msg mqtt.Message) {
-	log.Printf("📡 MQTT сообщение получено: %s", msg.Topic())
+	log.Printf("MQTT сообщение получено: %s", msg.Topic())
 }
 
 // dataWorker обрабатывает входящие данные
@@ -141,7 +137,7 @@ func (p *MQTTStreamProcessor) dataWorker() {
 		case data := <-p.dataChannel:
 			p.processData(data)
 		case <-p.ctx.Done():
-			log.Println("🛑 Data worker остановлен")
+			log.Println("Data worker остановлен")
 			return
 		}
 	}
@@ -149,37 +145,32 @@ func (p *MQTTStreamProcessor) dataWorker() {
 
 // processData обрабатывает одну точку данных со специальной фильтрацией спайков
 func (p *MQTTStreamProcessor) processData(data *models.MedicalData) {
-	// 1. Проверка активной сессии
 	session := p.sessionManager.GetActiveSession(data.DeviceID)
 	if session == nil {
 		cardID := uuid.New()
 		var err error
 		session, err = p.sessionManager.StartSession(cardID, data.DeviceID)
 		if err != nil {
-			log.Printf("❌ Ошибка создания автосессии для %s: %v", data.DeviceID, err)
+			log.Printf("Ошибка создания автосессии для %s: %v", data.DeviceID, err)
 			return
 		}
-		log.Printf("✅ Автоматически создана сессия для устройства: %s", data.DeviceID)
+		log.Printf("Автоматически создана сессия для устройства: %s", data.DeviceID)
 	}
 
-	// 2. СПЕЦИАЛЬНАЯ ФИЛЬТРАЦИЯ ЕДИНИЧНЫХ ВЫБРОСОВ
 	originalValue := data.Value
 
-	// Добавляем значение в буфер и проверяем на выброс
 	isSpike := p.spikeFilter.DetectSingleSpike(data.DataType, data.Value)
 
 	if isSpike {
-		// Заменяем спайк на интерполированное значение
 		interpolatedValue := p.spikeFilter.InterpolateValue(data.DataType)
 		data.Value = interpolatedValue
-		log.Printf("🎯 ЕДИНИЧНЫЙ ВЫБРОС обнаружен и исправлен %s: %.2f -> %.2f",
+		log.Printf("ЕДИНИЧНЫЙ ВЫБРОС обнаружен и исправлен %s: %.2f -> %.2f",
 			data.DataType, originalValue, interpolatedValue)
 	}
 
-	// 3. Базовая валидация диапазонов
 	if !p.isValidDataRange(data) {
 		data.Value = -1
-		log.Printf("⛔ Значение вне допустимого диапазона %s: %.2f -> -1",
+		log.Printf("Значение вне допустимого диапазона %s: %.2f -> -1",
 			data.DataType, originalValue)
 	}
 
@@ -194,14 +185,13 @@ func (p *MQTTStreamProcessor) processData(data *models.MedicalData) {
 	select {
 	case p.grpcChannel <- grpcData:
 	default:
-		log.Printf("⚠️ gRPC канал переполнен для устройства %s", data.DeviceID)
+		log.Printf("gRPC канал переполнен для устройства %s", data.DeviceID)
 	}
 
 	// 5. Добавляем в буфер для записи в БД
 	p.dataBuffer.AddDataPoint(session.ID, data.DataType, data.Value, data.TimeSec)
 }
 
-// DetectSingleSpike обнаруживает единичные выбросы типа "30-30-30-50-30-30-30"
 func (sf *SpikeDetectionFilter) DetectSingleSpike(dataType string, value float64) bool {
 	sf.mu.Lock()
 	defer sf.mu.Unlock()
@@ -224,12 +214,10 @@ func (sf *SpikeDetectionFilter) DetectSingleSpike(dataType string, value float64
 		*buffer = (*buffer)[1:]
 	}
 
-	// Нужно минимум 7 точек для анализа спайка (3 до + спайк + 3 после)
 	if len(*buffer) < 7 {
 		return false
 	}
 
-	// Анализируем текущую точку (предпоследнюю в буфере, так как последняя - новая)
 	analyzeIndex := len(*buffer) - 2
 	if analyzeIndex < sf.contextWindow {
 		return false
@@ -241,63 +229,53 @@ func (sf *SpikeDetectionFilter) DetectSingleSpike(dataType string, value float64
 	beforeValues := make([]float64, 0, sf.contextWindow)
 	afterValues := make([]float64, 0, sf.contextWindow)
 
-	// Собираем значения ДО предполагаемого спайка
 	for i := analyzeIndex - sf.contextWindow; i < analyzeIndex; i++ {
 		if i >= 0 {
 			beforeValues = append(beforeValues, (*buffer)[i])
 		}
 	}
 
-	// Собираем значения ПОСЛЕ предполагаемого спайка
 	for i := analyzeIndex + 1; i <= analyzeIndex+sf.contextWindow && i < len(*buffer); i++ {
 		afterValues = append(afterValues, (*buffer)[i])
 	}
 
-	// Должно быть достаточно контекстных точек
 	if len(beforeValues) < 2 || len(afterValues) < 2 {
 		return false
 	}
 
-	// Вычисляем средние значения до и после
 	beforeMean := sf.calculateMean(beforeValues)
 	afterMean := sf.calculateMean(afterValues)
 	contextMean := (beforeMean + afterMean) / 2.0
 
-	// Вычисляем стандартное отклонение контекста
 	contextStd := sf.calculateStd(append(beforeValues, afterValues...), contextMean)
 
-	// Проверяем условия для детекции спайка
 	deviation := math.Abs(currentValue - contextMean)
 
-	// Условие 1: Значение сильно отличается от контекста
 	isDeviantFromContext := deviation > sf.spikeDeviation
 
-	// Условие 2: Значения до и после спайка стабильны (похожи друг на друга)
 	beforeAfterDiff := math.Abs(beforeMean - afterMean)
 	isContextStable := beforeAfterDiff < sf.spikeDeviation/2.0
 
-	// Условие 3: Статистическая значимость (если есть достаточно данных)
 	isStatisticallySignificant := true
 	if contextStd > 0 {
 		zScore := deviation / contextStd
-		isStatisticallySignificant = zScore > 2.0 // 2-сигма правило
+		isStatisticallySignificant = zScore > 2.0
 	}
 
-	// Условие 4: "Островной" спайк - соседние точки не являются спайками
 	isIsolatedSpike := sf.checkIsolation(beforeValues, afterValues, currentValue)
 
 	isSpike := isDeviantFromContext && isContextStable && isStatisticallySignificant && isIsolatedSpike
 
 	if isSpike {
 		sf.spikesDetected++
-		log.Printf("🎯 ДЕТЕКЦИЯ СПАЙКА %s:")
-		log.Printf("   Значение: %.2f, Контекст: %.2f (отклонение: %.2f)")
-		log.Printf("   До спайка: %.2f, После спайка: %.2f (разность: %.2f)")
-		log.Printf("   Z-score: %.2f, Изолированный: %v")
+		log.Printf("ДЕТЕКЦИЯ СПАЙКА %s:")
+		log.Printf("Значение: %.2f, Контекст: %.2f (отклонение: %.2f)")
+		log.Printf("До спайка: %.2f, После спайка: %.2f (разность: %.2f)")
+		log.Printf("Z-score: %.2f, Изолированный: %v")
 
 		// Обновляем статистику
 		if sf.totalProcessed%100 == 0 {
-			log.Printf("📊 Статистика фильтрации: %d/%d (%.1f%% спайков)",
+			log.Printf("Статистика фильтрации: %d/%d (%.1f%% спайков)",
 				sf.spikesDetected, sf.totalProcessed,
 				float64(sf.spikesDetected)/float64(sf.totalProcessed)*100)
 		}
@@ -384,20 +362,16 @@ func (sf *SpikeDetectionFilter) checkIsolation(beforeValues, afterValues []float
 		return false
 	}
 
-	// Проверяем, что соседние точки не отклоняются сильно от общего контекста
 	lastBefore := beforeValues[len(beforeValues)-1]
 	firstAfter := afterValues[0]
 
-	// Среднее значение контекста (без спайка)
 	allContext := append(beforeValues, afterValues...)
 	contextMean := sf.calculateMean(allContext)
 
-	// Соседние точки должны быть близки к контексту
 	beforeDeviation := math.Abs(lastBefore - contextMean)
 	afterDeviation := math.Abs(firstAfter - contextMean)
 	spikeDeviation := math.Abs(spikeValue - contextMean)
 
-	// Спайк должен отклоняться больше, чем соседние точки
 	return beforeDeviation < spikeDeviation/2.0 && afterDeviation < spikeDeviation/2.0
 }
 
@@ -420,11 +394,10 @@ func (p *MQTTStreamProcessor) grpcWorker() {
 	for {
 		select {
 		case data := <-p.grpcChannel:
-			// Немедленная отправка для потокового режима
 			p.grpcStreamer.BroadcastCTGData(data)
 
 		case <-p.ctx.Done():
-			log.Println("🛑 gRPC worker остановлен")
+			log.Println("gRPC worker остановлен")
 			return
 		}
 	}
@@ -443,7 +416,7 @@ func (p *MQTTStreamProcessor) bufferWorker() {
 		case <-p.ctx.Done():
 			// Финальный флаш
 			p.dataBuffer.FlushAll()
-			log.Println("🛑 Buffer worker остановлен")
+			log.Println("Buffer worker остановлен")
 			return
 		}
 	}
@@ -451,10 +424,10 @@ func (p *MQTTStreamProcessor) bufferWorker() {
 
 // Stop останавливает процессор
 func (p *MQTTStreamProcessor) Stop() {
-	log.Println("🛑 Остановка MQTT Stream Processor...")
+	log.Println("Остановка MQTT Stream Processor...")
 	p.cancel()
 	p.wg.Wait()
 	close(p.dataChannel)
 	close(p.grpcChannel)
-	log.Println("✅ MQTT Stream Processor остановлен")
+	log.Println("MQTT Stream Processor остановлен")
 }

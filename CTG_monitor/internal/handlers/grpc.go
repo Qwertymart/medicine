@@ -12,23 +12,18 @@ import (
 	pb "CTG_monitor/proto"
 )
 
-// GRPCStreamer управляет только батчевой отправкой данных каждые 4 минуты
 type GRPCStreamer struct {
 	pb.UnimplementedCTGStreamServiceServer
 
-	// Батчевые клиенты
 	batchClients map[string]*BatchSubscriber
 	mu           sync.RWMutex
 
-	// Буфер для накопления данных
 	batchBuffer map[string][]*pb.CTGDataResponse
 	batchMu     sync.RWMutex
 	subscribers map[string]*StreamSubscriber
 
-	// Таймер строго на 4 минуты
 	batchTicker *time.Ticker
 
-	// Управление жизненным циклом
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -65,18 +60,17 @@ func NewGRPCStreamer() *GRPCStreamer {
 		cancel:       cancel,
 	}
 
-	// Запуск батчевого процессора
 	streamer.wg.Add(1)
 	go streamer.batchProcessor()
 
-	log.Println("📦 gRPC Batch Streamer инициализирован (только батчи каждые 4 минуты)")
+	log.Println("gRPC Batch Streamer инициализирован (только батчи каждые 4 минуты)")
 	return streamer
 }
 
 // StreamBatchCTGData батчевая передача данных строго каждые 4 минуты
 func (gs *GRPCStreamer) StreamBatchCTGData(req *pb.StreamRequest, stream pb.CTGStreamService_StreamBatchCTGDataServer) error {
 	clientID := fmt.Sprintf("batch_client_%d", time.Now().UnixNano())
-	log.Printf("📦 Новый батчевый клиент подключен: %s, устройства: %v", clientID, req.DeviceIds)
+	log.Printf("Новый батчевый клиент подключен: %s, устройства: %v", clientID, req.DeviceIds)
 
 	// Создаем батчевого подписчика
 	subscriber := &BatchSubscriber{
@@ -87,7 +81,6 @@ func (gs *GRPCStreamer) StreamBatchCTGData(req *pb.StreamRequest, stream pb.CTGS
 		Context:   stream.Context(),
 	}
 
-	// Регистрируем подписчика
 	gs.mu.Lock()
 	gs.batchClients[clientID] = subscriber
 	gs.mu.Unlock()
@@ -98,7 +91,7 @@ func (gs *GRPCStreamer) StreamBatchCTGData(req *pb.StreamRequest, stream pb.CTGS
 		delete(gs.batchClients, clientID)
 		close(subscriber.Channel)
 		gs.mu.Unlock()
-		log.Printf("📦 Батчевый клиент отключен: %s", clientID)
+		log.Printf("Батчевый клиент отключен: %s", clientID)
 	}()
 
 	// Обработка отправки батчей
@@ -116,14 +109,14 @@ func (gs *GRPCStreamer) StreamBatchCTGData(req *pb.StreamRequest, stream pb.CTGS
 			}
 
 			if err := stream.Send(batchResponse); err != nil {
-				log.Printf("❌ Ошибка отправки батча клиенту %s: %v", clientID, err)
+				log.Printf("Ошибка отправки батча клиенту %s: %v", clientID, err)
 				return err
 			}
 
-			log.Printf("📤 Отправлен батч клиенту %s: %d точек", clientID, len(batch))
+			log.Printf("Отправлен батч клиенту %s: %d точек", clientID, len(batch))
 
 		case <-subscriber.Context.Done():
-			log.Printf("🛑 Контекст батчевого клиента завершен: %s", clientID)
+			log.Printf("Контекст батчевого клиента завершен: %s", clientID)
 			return subscriber.Context.Err()
 		}
 	}
@@ -133,13 +126,11 @@ func (gs *GRPCStreamer) StreamBatchCTGData(req *pb.StreamRequest, stream pb.CTGS
 func (gs *GRPCStreamer) BroadcastCTGData(data *pb.CTGDataResponse) {
 	gs.mu.RLock()
 
-	// Отправляем потоковым подписчикам
 	for clientID, subscriber := range gs.subscribers {
 		select {
 		case subscriber.Channel <- data:
-			// Успешно отправлено
 		default:
-			log.Printf("⚠️ Канал потокового клиента %s переполнен", clientID)
+			log.Printf("Канал потокового клиента %s переполнен", clientID)
 		}
 	}
 	gs.mu.RUnlock()
@@ -152,7 +143,7 @@ func (gs *GRPCStreamer) BroadcastCTGData(data *pb.CTGDataResponse) {
 	gs.batchBuffer[deviceKey] = append(gs.batchBuffer[deviceKey], data)
 
 	if len(gs.batchBuffer[deviceKey])%1000 == 0 {
-		log.Printf("📊 Накоплено %d точек для устройства %s", len(gs.batchBuffer[deviceKey]), deviceKey)
+		log.Printf("Накоплено %d точек для устройства %s", len(gs.batchBuffer[deviceKey]), deviceKey)
 	}
 }
 
@@ -160,7 +151,7 @@ func (gs *GRPCStreamer) BroadcastCTGData(data *pb.CTGDataResponse) {
 func (gs *GRPCStreamer) batchProcessor() {
 	defer gs.wg.Done()
 
-	log.Printf("⏰ Батчевый процессор запущен. Отправка каждые 4 минуты")
+	log.Printf("Батчевый процессор запущен. Отправка каждые 4 минуты")
 
 	for {
 		select {
@@ -169,9 +160,9 @@ func (gs *GRPCStreamer) batchProcessor() {
 
 		case <-gs.ctx.Done():
 			// Финальная обработка батчей при завершении
-			log.Println("🛑 Завершение работы - отправка финальных батчей")
+			log.Println("Завершение работы - отправка финальных батчей")
 			gs.processBatches()
-			log.Println("🛑 Batch processor остановлен")
+			log.Println("Batch processor остановлен")
 			return
 		}
 	}
@@ -180,7 +171,7 @@ func (gs *GRPCStreamer) batchProcessor() {
 // processBatches обрабатывает и отправляет все накопленные батчи
 func (gs *GRPCStreamer) processBatches() {
 	currentTime := time.Now()
-	log.Printf("⏰ Запуск processBatches в %s", currentTime.Format("15:04:05.000"))
+	log.Printf("Запуск processBatches в %s", currentTime.Format("15:04:05.000"))
 
 	gs.batchMu.Lock()
 
@@ -191,7 +182,6 @@ func (gs *GRPCStreamer) processBatches() {
 
 	for deviceID, batch := range gs.batchBuffer {
 		if len(batch) > 0 {
-			// Создаем копию батча
 			batchCopy := make([]*pb.CTGDataResponse, len(batch))
 			copy(batchCopy, batch)
 			batchesToSend[deviceID] = batchCopy
@@ -199,24 +189,22 @@ func (gs *GRPCStreamer) processBatches() {
 			totalPoints += len(batch)
 			deviceCount++
 
-			log.Printf("📤 Подготовлен батч для %s: %d точек", deviceID, len(batch))
+			log.Printf("Подготовлен батч для %s: %d точек", deviceID, len(batch))
 		}
 	}
 
-	// Очищаем буферы после копирования
 	gs.batchBuffer = make(map[string][]*pb.CTGDataResponse)
 	gs.batchMu.Unlock()
 
-	// Отправляем батчи клиентам (вне блокировки)
 	if len(batchesToSend) > 0 {
 		for deviceID, batch := range batchesToSend {
 			gs.broadcastBatch(deviceID, batch)
 		}
 
-		log.Printf("📦 Обработаны временные батчи: %d точек для %d устройств в %s",
+		log.Printf("Обработаны временные батчи: %d точек для %d устройств в %s",
 			totalPoints, deviceCount, currentTime.Format("15:04:05.000"))
 	} else {
-		log.Printf("📦 Нет данных для отправки в %s", currentTime.Format("15:04:05.000"))
+		log.Printf("Нет данных для отправки в %s", currentTime.Format("15:04:05.000"))
 	}
 }
 
@@ -226,13 +214,11 @@ func (gs *GRPCStreamer) broadcastBatch(deviceID string, batch []*pb.CTGDataRespo
 	defer gs.mu.RUnlock()
 
 	for clientID, subscriber := range gs.batchClients {
-		// Проверяем, подписан ли клиент на это устройство
 		if len(subscriber.DeviceIDs) == 0 || gs.containsDevice(subscriber.DeviceIDs, deviceID) {
 			select {
 			case subscriber.Channel <- batch:
-				// Успешно отправлено
 			default:
-				log.Printf("⚠️ Канал батчевого клиента %s переполнен", clientID)
+				log.Printf("Канал батчевого клиента %s переполнен", clientID)
 			}
 		}
 	}
@@ -269,18 +255,17 @@ func (gs *GRPCStreamer) GetBufferStatus() map[string]int {
 
 // Stop останавливает стример
 func (gs *GRPCStreamer) Stop() {
-	log.Println("🛑 Остановка gRPC Batch Streamer...")
+	log.Println("Остановка gRPC Batch Streamer...")
 	gs.cancel()
 	gs.batchTicker.Stop()
 	gs.wg.Wait()
-	log.Println("✅ gRPC Batch Streamer остановлен")
+	log.Println("gRPC Batch Streamer остановлен")
 }
 
 func (gs *GRPCStreamer) StreamCTGData(req *pb.StreamRequest, stream pb.CTGStreamService_StreamCTGDataServer) error {
 	clientID := fmt.Sprintf("stream_client_%d", time.Now().UnixNano())
-	log.Printf("🔌 Новый потоковый клиент подключен: %s, устройства: %v", clientID, req.DeviceIds)
+	log.Printf("Новый потоковый клиент подключен: %s, устройства: %v", clientID, req.DeviceIds)
 
-	// Создаем подписчика
 	subscriber := &StreamSubscriber{
 		ID:        clientID,
 		DeviceIDs: req.DeviceIds,
@@ -290,34 +275,30 @@ func (gs *GRPCStreamer) StreamCTGData(req *pb.StreamRequest, stream pb.CTGStream
 		Context:   stream.Context(),
 	}
 
-	// Регистрируем подписчика
 	gs.mu.Lock()
 	gs.subscribers[clientID] = subscriber
 	gs.mu.Unlock()
 
-	// Очистка при отключении
 	defer func() {
 		gs.mu.Lock()
 		delete(gs.subscribers, clientID)
 		close(subscriber.Channel)
 		gs.mu.Unlock()
-		log.Printf("🔌 Потоковый клиент отключен: %s", clientID)
+		log.Printf("Потоковый клиент отключен: %s", clientID)
 	}()
 
 	var counter int
-
-	// Обработка отправки данных
 	for {
 		select {
 		case data := <-subscriber.Channel:
 			if gs.shouldSendData(data, req, &counter) {
 				if err := stream.Send(data); err != nil {
-					log.Printf("❌ Ошибка отправки потоковых данных клиенту %s: %v", clientID, err)
+					log.Printf("Ошибка отправки потоковых данных клиенту %s: %v", clientID, err)
 					return err
 				}
 			}
 		case <-subscriber.Context.Done():
-			log.Printf("🛑 Контекст потокового клиента завершен: %s", clientID)
+			log.Printf("Контекст потокового клиента завершен: %s", clientID)
 			return subscriber.Context.Err()
 		}
 	}
@@ -356,10 +337,7 @@ func (gs *GRPCStreamer) shouldSendData(data *pb.CTGDataResponse, req *pb.StreamR
 		}
 	}
 
-	//// Увеличиваем локальный счетчик
 	//(*counter)++
-	//
-	//// Отправляем каждое 3-е значение
 	return true
 }
 

@@ -27,7 +27,7 @@ func InitMedicalRecordsClient(address string) error {
 	grpcConn = conn
 	medicalRecordsClient = medpb.NewMedicalRecordsServiceClient(conn)
 
-	log.Printf("🏥 gRPC клиент медкарт инициализирован: %s", address)
+	log.Printf("gRPC клиент медкарт инициализирован: %s", address)
 	return nil
 }
 
@@ -86,7 +86,7 @@ func sendSessionToMedicalRecordsGRPC(session *models.CTGSession) error {
 		TotalUcPoints:   int32(len(ucPoints)),
 	}
 
-	log.Printf("📤 Отправка сессии %s в медкарты через gRPC: FHR=%d, UC=%d точек",
+	log.Printf("Отправка сессии %s в медкарты через gRPC: FHR=%d, UC=%d точек",
 		session.ID.String(), len(fhrPoints), len(ucPoints))
 
 	// Отправляем запрос
@@ -96,29 +96,28 @@ func sendSessionToMedicalRecordsGRPC(session *models.CTGSession) error {
 	}
 
 	if !response.Success {
-		log.Printf("❌ Сервис медкарт вернул ошибку: %s", response.Message)
+		log.Printf("Сервис медкарт вернул ошибку: %s", response.Message)
 		return nil // Не возвращаем ошибку, просто логируем
 	}
 
-	log.Printf("✅ Сессия %s успешно сохранена в медкарты (Record ID: %s)",
+	log.Printf("Сессия %s успешно сохранена в медкарты (Record ID: %s)",
 		session.ID.String(), response.RecordId)
 
 	return nil
 }
 
 func SendSessionToMedicalRecords(sessionID uuid.UUID) {
-	log.Printf("📤 Начинаем отправку сессии %s в медкарты", sessionID)
+	log.Printf("Начинаем отправку сессии %s в медкарты", sessionID)
 
 	db := database.GetDB()
 
-	// 1. Загрузить сессию вместе с JSONB полями FHRData и UCData
 	var session models.CTGSession
 	if err := db.First(&session, "id = ?", sessionID).Error; err != nil {
-		log.Printf("❌ Ошибка получения сессии %s из БД: %v", sessionID, err)
+		log.Printf("Ошибка получения сессии %s из БД: %v", sessionID, err)
 		return
 	}
 	if session.EndTime == nil {
-		log.Printf("⚠️ Сессия %s ещё не завершена", sessionID)
+		log.Printf("Сессия %s ещё не завершена", sessionID)
 		return
 	}
 
@@ -126,12 +125,12 @@ func SendSessionToMedicalRecords(sessionID uuid.UUID) {
 	fhrCount := len(session.FHRData.Points)
 	ucCount := len(session.UCData.Points)
 
-	log.Printf("📊 Данные сессии %s: FHR=%d точек, UC=%d точек", sessionID, fhrCount, ucCount)
+	log.Printf("Данные сессии %s: FHR=%d точек, UC=%d точек", sessionID, fhrCount, ucCount)
 
 	// 3. Отправить через существующий gRPC клиент
 	if err := sendSessionToMedicalRecordsGRPC(&session); err != nil {
-		log.Printf("❌ Ошибка отправки сессии %s в медкарты: %v", sessionID, err)
+		log.Printf("Ошибка отправки сессии %s в медкарты: %v", sessionID, err)
 	} else {
-		log.Printf("✅ Сессия %s успешно отправлена в медкарты", sessionID)
+		log.Printf("Сессия %s успешно отправлена в медкарты", sessionID)
 	}
 }

@@ -52,10 +52,10 @@ func InitDatabase(config *configs.Config) (*gorm.DB, error) {
 		return nil, fmt.Errorf("не удалось получить sql.DB: %w", err)
 	}
 
-	sqlDB.SetMaxIdleConns(10)                  // Максимум незанятых соединений
-	sqlDB.SetMaxOpenConns(50)                  // Максимум открытых соединений
-	sqlDB.SetConnMaxLifetime(time.Hour)        // Максимальное время жизни соединения
-	sqlDB.SetConnMaxIdleTime(10 * time.Minute) // Максимальное время простоя
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(50)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
 
 	// Проверяем соединение
 	if err := sqlDB.Ping(); err != nil {

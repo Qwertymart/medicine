@@ -31,9 +31,9 @@ type AppConfig struct {
 type MQTTConfig struct {
 	Broker   string
 	ClientID string
-	Username string // ✅ Добавляем MQTT_USERNAME
-	Password string // ✅ Добавляем MQTT_PASSWORD
-	QoS      int    // ✅ Добавляем MQTT_QOS
+	Username string
+	Password string
+	QoS      int
 }
 
 // LoadConfig загружает конфигурацию из .env файла
@@ -50,16 +50,16 @@ func LoadConfig() *Config {
 			TimeZone: getEnv("DB_TIMEZONE", "Europe/Moscow"),
 		},
 		App: AppConfig{
-			Port:     getEnv("HTTP_PORT", "8080"), // ✅ Используем HTTP_PORT из .env
+			Port:     getEnv("HTTP_PORT", "8080"),
 			GRPCPort: getEnv("GRPC_PORT", "50051"),
 			LogLevel: getEnv("LOG_LEVEL", "info"),
 		},
 		MQTT: MQTTConfig{
 			Broker:   getEnv("MQTT_BROKER", "tcp://localhost:1883"),
 			ClientID: getEnv("MQTT_CLIENT_ID", "ctg_monitor_service"),
-			Username: getEnv("MQTT_USERNAME", ""), // ✅ Добавляем MQTT auth
-			Password: getEnv("MQTT_PASSWORD", ""), // ✅ Добавляем MQTT auth
-			QoS:      getEnvAsInt("MQTT_QOS", 1),  // ✅ Добавляем QoS
+			Username: getEnv("MQTT_USERNAME", ""),
+			Password: getEnv("MQTT_PASSWORD", ""),
+			QoS:      getEnvAsInt("MQTT_QOS", 1),
 		},
 	}
 }

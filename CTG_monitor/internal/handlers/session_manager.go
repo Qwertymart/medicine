@@ -15,7 +15,7 @@ import (
 // SessionManager управляет жизненным циклом сессий КТГ
 type SessionManager struct {
 	db             *gorm.DB
-	activeSessions map[string]*models.CTGSession // deviceID -> session
+	activeSessions map[string]*models.CTGSession
 	sessionsLock   sync.RWMutex
 	dataBuffer     *DataBuffer
 
@@ -32,7 +32,7 @@ func NewSessionManager(db *gorm.DB, dataBuffer *DataBuffer) *SessionManager {
 		dataBuffer:     dataBuffer,
 	}
 
-	log.Println("👥 Session Manager инициализирован")
+	log.Println("Session Manager инициализирован")
 	return manager
 }
 
@@ -83,7 +83,7 @@ func (sm *SessionManager) StartSession(cardID uuid.UUID, deviceID string) (*mode
 		sm.onSessionStart(session)
 	}
 
-	log.Printf("✅ Запущена сессия %s для устройства %s, карта %s",
+	log.Printf("Запущена сессия %s для устройства %s, карта %s",
 		session.ID.String(), deviceID, cardID.String())
 
 	return session, nil
@@ -225,17 +225,16 @@ func (sm *SessionManager) CleanupInactiveSessions() {
 	defer sm.sessionsLock.Unlock()
 
 	var sessionsToRemove []string
-	threshold := time.Now().Add(-24 * time.Hour) // Сессии старше 24 часов
+	threshold := time.Now().Add(-24 * time.Hour)
 
 	for deviceID, session := range sm.activeSessions {
 		if session.StartTime.Before(threshold) {
-			// Принудительно завершаем старую сессию
 			now := time.Now().UTC()
 			session.EndTime = &now
 			sm.db.Model(session).Update("end_time", now)
 
 			sessionsToRemove = append(sessionsToRemove, deviceID)
-			log.Printf("⚠️ Принудительно завершена зависшая сессия: %s", session.ID.String())
+			log.Printf("Принудительно завершена зависшая сессия: %s", session.ID.String())
 		}
 	}
 
@@ -245,6 +244,6 @@ func (sm *SessionManager) CleanupInactiveSessions() {
 	}
 
 	if len(sessionsToRemove) > 0 {
-		log.Printf("🧹 Очищено %d зависших сессий", len(sessionsToRemove))
+		log.Printf("Очищено %d зависших сессий", len(sessionsToRemove))
 	}
 }

@@ -48,7 +48,7 @@ func NewDataBuffer(db *gorm.DB) *DataBuffer {
 	buffer.wg.Add(1)
 	go buffer.autoFlushWorker()
 
-	log.Println("📦 Data Buffer инициализирован")
+	log.Println("Data Buffer инициализирован")
 	return buffer
 }
 
@@ -59,7 +59,6 @@ func (db *DataBuffer) AddDataPoint(sessionID uuid.UUID, dataType string, value, 
 	db.mu.RUnlock()
 
 	if !exists {
-		// Создаем новый буфер для сессии
 		db.mu.Lock()
 		if sessionBuffer, exists = db.sessionBuffers[sessionID]; !exists {
 			sessionBuffer = &SessionDataBuffer{
@@ -88,7 +87,6 @@ func (db *DataBuffer) AddDataPoint(sessionID uuid.UUID, dataType string, value, 
 		sessionBuffer.UCBuffer = append(sessionBuffer.UCBuffer, point)
 	}
 
-	// Проверяем необходимость флаша
 	totalPoints := len(sessionBuffer.FHRBuffer) + len(sessionBuffer.UCBuffer)
 	timeSinceFlush := time.Since(sessionBuffer.LastFlush)
 
@@ -165,18 +163,16 @@ func (db *DataBuffer) writeToDatabase(sessionID uuid.UUID, fhrPoints, ucPoints [
            '{points}', COALESCE(fhr_data->'points','[]'::jsonb)||?::jsonb),
          '{count}', (COALESCE((fhr_data->>'count')::int,0)+?)::text::jsonb),
        '{last_time}', ?::text::jsonb)`,
-			string(fhrJSON), // ? -> JSON-массив точек
-			len(fhrPoints),  // ? -> инкремент счётчика
-			lastTimeStr,     // ? -> текстовое значение времени
+			string(fhrJSON),
+			len(fhrPoints),
+			lastTimeStr,
 		)
 	}
 
 	if len(ucPoints) > 0 {
 		ucJSON, _ := json.Marshal(ucPoints)
-		// Подготовка строкового представления последнего времени для UC
 		lastTimeUC := strconv.FormatFloat(ucPoints[len(ucPoints)-1].T, 'f', -1, 64)
 
-		// Обновление uc_data через GORM Expr
 		updates["uc_data"] = gorm.Expr(
 			`jsonb_set(
        jsonb_set(
@@ -184,9 +180,9 @@ func (db *DataBuffer) writeToDatabase(sessionID uuid.UUID, fhrPoints, ucPoints [
            '{points}', COALESCE(uc_data->'points','[]'::jsonb) || ?::jsonb),
          '{count}', (COALESCE((uc_data->>'count')::int, 0) + ?)::text::jsonb),
        '{last_time}', ?::text::jsonb)`,
-			string(ucJSON), // ? -> JSON-массив точек UC
-			len(ucPoints),  // ? -> инкремент счётчика
-			lastTimeUC,     // ? -> текстовое значение времени UC
+			string(ucJSON),
+			len(ucPoints),
+			lastTimeUC,
 		)
 	}
 
@@ -204,7 +200,7 @@ func (db *DataBuffer) RemoveSessionBuffer(sessionID uuid.UUID) {
 		// Финальный флаш перед удалением
 		go db.flushSessionAsync(sessionID)
 		delete(db.sessionBuffers, sessionID)
-		log.Printf("🧹 Удален буфер сессии: %s", sessionID)
+		log.Printf("Удален буфер сессии: %s", sessionID)
 	}
 }
 
@@ -221,7 +217,7 @@ func (db *DataBuffer) autoFlushWorker() {
 			db.flushOldBuffers()
 		case <-db.ctx.Done():
 			db.finalFlush()
-			log.Println("🛑 Auto flush worker остановлен")
+			log.Println("Auto flush worker остановлен")
 			return
 		}
 	}
@@ -261,13 +257,13 @@ func (db *DataBuffer) finalFlush() {
 
 	// Ждем завершения всех операций
 	time.Sleep(2 * time.Second)
-	log.Println("✅ Финальный флаш завершен")
+	log.Println("Финальный флаш завершен")
 }
 
 // Stop останавливает буфер
 func (db *DataBuffer) Stop() {
-	log.Println("🛑 Остановка Data Buffer...")
+	log.Println("Остановка Data Buffer...")
 	db.cancel()
 	db.wg.Wait()
-	log.Println("✅ Data Buffer остановлен")
+	log.Println("Data Buffer остановлен")
 }

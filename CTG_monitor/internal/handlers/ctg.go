@@ -47,7 +47,7 @@ func InitSessionBuffer(db *gorm.DB, sessionMgr *SessionManager) {
 	}
 
 	go sessionBuffer.autoFlushLoop()
-	log.Println("🔄 Session buffer инициализирован с SessionManager")
+	log.Println("Session buffer инициализирован с SessionManager")
 }
 
 // AddCTGDataPoint добавляет данные ТОЛЬКО для активных сессий
@@ -74,7 +74,6 @@ func AddCTGDataPoint(deviceID string, dataType string, value, timeSec float64) {
 		V: value,
 	}
 
-	// Добавляем в соответствующий буфер
 	switch dataType {
 	case "fetal_heart_rate":
 		buffer.FHRBuffer = append(buffer.FHRBuffer, point)
@@ -107,7 +106,7 @@ func (sb *SessionBuffer) getOrCreateBuffer(sessionID uuid.UUID, deviceID string)
 	}
 
 	sb.buffers[sessionID] = buffer
-	log.Printf("📝 Создан буфер для активной сессии: %s", sessionID)
+	log.Printf("Создан буфер для активной сессии: %s", sessionID)
 	return buffer
 }
 
@@ -120,14 +119,12 @@ func (sb *SessionBuffer) flushBufferAsync(sessionID uuid.UUID) {
 		return
 	}
 
-	// Копируем данные
 	fhrPoints := make([]models.CTGPoint, len(buffer.FHRBuffer))
 	copy(fhrPoints, buffer.FHRBuffer)
 
 	ucPoints := make([]models.CTGPoint, len(buffer.UCBuffer))
 	copy(ucPoints, buffer.UCBuffer)
 
-	// Очищаем буферы
 	buffer.FHRBuffer = buffer.FHRBuffer[:0]
 	buffer.UCBuffer = buffer.UCBuffer[:0]
 	buffer.LastFlush = time.Now()
@@ -138,10 +135,9 @@ func (sb *SessionBuffer) flushBufferAsync(sessionID uuid.UUID) {
 		return
 	}
 
-	// Обновляем сессию в БД
 	sb.appendToSession(sessionID, fhrPoints, ucPoints)
 
-	log.Printf("💾 Флаш буфера сессии %s: FHR=%d, UC=%d точек",
+	log.Printf("Флаш буфера сессии %s: FHR=%d, UC=%d точек",
 		sessionID, len(fhrPoints), len(ucPoints))
 }
 
@@ -149,7 +145,6 @@ func (sb *SessionBuffer) flushBufferAsync(sessionID uuid.UUID) {
 func (sb *SessionBuffer) appendToSession(sessionID uuid.UUID, fhrPoints, ucPoints []models.CTGPoint) {
 	updates := make(map[string]interface{})
 
-	// ✅ ИСПРАВЛЯЕМ: используем правильные имена полей
 	if len(fhrPoints) > 0 {
 		fhrJSON, _ := json.Marshal(fhrPoints)
 		updates["fhr_data"] = gorm.Expr(`
@@ -181,21 +176,19 @@ func (sb *SessionBuffer) appendToSession(sessionID uuid.UUID, fhrPoints, ucPoint
 	}
 
 	if err := sb.db.Model(&models.CTGSession{}).Where("id = ?", sessionID).Updates(updates).Error; err != nil {
-		log.Printf("❌ Ошибка аппенда к сессии: %v", err)
+		log.Printf("Ошибка аппенда к сессии: %v", err)
 		return
 	}
 
-	log.Printf("✅ Аппенд к сессии %s выполнен", sessionID)
+	log.Printf("Аппенд к сессии %s выполнен", sessionID)
 }
 
-// ✅ ДОБАВЛЯЕМ: функция для очистки буферов завершенных сессий
 func (sb *SessionBuffer) CleanupFinishedSessions() {
 	sb.buffersMu.Lock()
 	defer sb.buffersMu.Unlock()
 
 	var toRemove []uuid.UUID
 	for sessionID := range sb.buffers {
-		// Проверяем, активна ли еще сессия
 		var session models.CTGSession
 		err := sb.db.First(&session, "id = ? AND end_time IS NULL", sessionID).Error
 		if err != nil {
@@ -206,19 +199,18 @@ func (sb *SessionBuffer) CleanupFinishedSessions() {
 
 	for _, sessionID := range toRemove {
 		delete(sb.buffers, sessionID)
-		log.Printf("🧹 Удален буфер завершенной сессии: %s", sessionID)
+		log.Printf("Удален буфер завершенной сессии: %s", sessionID)
 	}
 }
 
 // autoFlushLoop с очисткой завершенных сессий
 func (sb *SessionBuffer) autoFlushLoop() {
-	cleanupTicker := time.NewTicker(60 * time.Second) // Очистка каждую минуту
+	cleanupTicker := time.NewTicker(60 * time.Second)
 	defer cleanupTicker.Stop()
 
 	for {
 		select {
 		case <-sb.flushTicker.C:
-			// Флашим все активные буферы
 			sb.buffersMu.RLock()
 			var sessionsToFlush []uuid.UUID
 			for sessionID, buffer := range sb.buffers {
@@ -233,11 +225,11 @@ func (sb *SessionBuffer) autoFlushLoop() {
 			}
 
 		case <-cleanupTicker.C:
-			// Очищаем буферы завершенных сессий
+
 			sb.CleanupFinishedSessions()
 
 		case <-sb.ctx.Done():
-			log.Println("🛑 Останавливаем автофлаш сессий")
+			log.Println("Останавливаем автофлаш сессий")
 			sb.finalFlush()
 			return
 		}
@@ -253,21 +245,21 @@ func (sb *SessionBuffer) finalFlush() {
 	}
 	sb.buffersMu.RUnlock()
 
-	log.Printf("🔄 Финальный флаш %d буферов сессий", len(sessionIDs))
+	log.Printf("Финальный флаш %d буферов сессий", len(sessionIDs))
 
 	for _, sessionID := range sessionIDs {
 		sb.flushBufferAsync(sessionID)
 	}
 
 	time.Sleep(2 * time.Second)
-	log.Println("✅ Финальный флаш завершен")
+	log.Println("Финальный флаш завершен")
 }
 
 func CloseSessionBuffer() {
 	if sessionBuffer != nil {
 		sessionBuffer.cancel()
 		sessionBuffer.flushTicker.Stop()
-		log.Println("🔒 Session buffer закрыт")
+		log.Println("Session buffer закрыт")
 	}
 }
 
