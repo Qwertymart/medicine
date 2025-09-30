@@ -60,7 +60,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
-const MAX_DATA_POINTS = 1000;
+const MAX_DATA_POINTS = 15 * 60 * 1000;
 
 export const SessionProvider: React.FC<{children: React.ReactNode}> = ({children}) => {
     const [activeSession, setActiveSession] = useState<SessionResponse | null>(null);

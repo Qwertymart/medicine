@@ -82,8 +82,8 @@ function useMockStream(dataType: string, isConnected: boolean) {
                 };
 
                 const updatedData = [...prev, newDataPoint];
-                if (updatedData.length > 600) {
-                    return updatedData.slice(-600);
+                if (updatedData.length > 18000) {
+                    return updatedData.slice(-18000);
                 }
                 return updatedData;
             });
@@ -139,14 +139,10 @@ function generateDataPoint(dataType: string, baseValue: number, timeSec: number)
 }
 
 export function Graphs({dataType, title, color}: GraphsProps) {
-    // const mockStreamData = useMockStream(dataType, false);
-    // const isConnected = true;
-    // const ctgData = mockStreamData;
     const {ctgData, isConnected} = useSession();
 
     const filteredData = useMemo(() => {
         if (!ctgData || ctgData.length === 0) return [];
-
         return (ctgData as CtgDataPoint[])
             .filter((point) => point.data_type === dataType)
             .sort((a, b) => a.timestamp - b.timestamp);
@@ -176,15 +172,18 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                             range: dataType === 'fetal_heart_rate' ? [0, 200] : [0, 100],
                         },
                     },
+                    chart: {
+                        style: {
+                            backgroundColor: 'white',
+                        },
+                    },
                 } as any,
             };
         }
 
         const mainData = filteredData.map((point) => (point.value !== -1 ? point.value : null));
-
-        // окно ленты(последние 10 минут)
         const now = Date.now();
-        const timeWindow = 10 * 60 * 1000;
+        const timeWindow = 15 * 60 * 1000;
 
         return {
             data: {
@@ -205,6 +204,9 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                     series: {
                         type: 'line',
                         spanGaps: false,
+                    },
+                    style: {
+                        backgroundColor: 'white',
                     },
                 },
                 title: {
@@ -310,7 +312,7 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                     width: 150,
                     display: 'flex',
                     flexDirection: 'column',
-                    height: '32.1vh',
+                    height: '30vh',
                 }}
             >
                 <div
@@ -321,7 +323,7 @@ export function Graphs({dataType, title, color}: GraphsProps) {
                         borderRadius: '0 8px 8px 0',
                         padding: 12,
                         background: 'white',
-                        height: '40vh',
+                        height: '100%',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
