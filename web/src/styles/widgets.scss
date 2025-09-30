@@ -1,0 +1,43 @@
+.widget3 {
+  &__title {
+    margin-bottom: 10px;
+
+    &_no_signal {
+      color: var(--g-color-text-danger);
+    }
+  }
+
+  &__card {
+    padding: 10px;
+    margin-top: 10px;
+  }
+
+  &__content {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  &__controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  &__results {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px;
+    background-color: var(--g-color-base-background);
+    border-radius: 8px;
+    border: 1px solid var(--g-color-line-generic);
+  }
+
+  &__result-item {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 8px;
+    align-items: start;
+  }
+}
