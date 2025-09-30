@@ -10,3 +10,30 @@ mosquitto/log/
 
 # Данные эмулятора
 medicine_emulator/data/
+# Логи Docker
+*.log
+
+# Временные файлы IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python временные файлы
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Go временные файлы
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
