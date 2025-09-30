@@ -29,7 +29,9 @@ services:
     networks: [ctg-network]
 
   ctg-emulator:
-    build: { context: ./medicine_emulator , dockerfile: Dockerfile }
+    build:
+      context: ./medicine_emulator
+      dockerfile: Dockerfile
     image: ctg-emulator:latest
     container_name: ctg_emulator_service
     restart: unless-stopped
@@ -45,12 +47,12 @@ services:
       - MQTT_CLIENT_ID=ctg_emulator
       - MQTT_USERNAME=ctg_mqtt_user
       - MQTT_PASSWORD=ctg_mqtt_password
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks: [ctg-network]
 
   ctg-monitor:
-    build: { context: ./CTG_monitor , dockerfile: Dockerfile }
+    build:
+      context: ./CTG_monitor
+      dockerfile: Dockerfile
     image: ctg-monitor:latest
     container_name: ctg_monitor_service
     restart: unless-stopped
@@ -59,7 +61,6 @@ services:
       - "50051:50051"
     depends_on: [postgres, mosquitto, ml-service]
     environment:
-      # DB
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${DB_USER}
@@ -67,7 +68,6 @@ services:
       - DB_NAME=${DB_NAME}
       - DB_SSLMODE=disable
       - DB_TIMEZONE=Europe/Moscow
-      # MQTT
       - MQTT_BROKER=tcp://mosquitto:1883
       - MQTT_HOST=mosquitto
       - MQTT_PORT=1883
@@ -75,7 +75,6 @@ services:
       - MQTT_USERNAME=ctg_mqtt_user
       - MQTT_PASSWORD=ctg_mqtt_password
       - MQTT_QOS=1
-      # App
       - HTTP_PORT=8080
       - GRPC_PORT=50051
       - LOG_LEVEL=info
@@ -90,7 +89,9 @@ services:
     networks: [ctg-network]
 
   temp-ml:
-    build: { context: ./temp_ml , dockerfile: Dockerfile }
+    build:
+      context: ./temp_ml
+      dockerfile: Dockerfile
     image: temp-ml:latest
     container_name: temp_ml_service
     restart: unless-stopped
@@ -104,7 +105,9 @@ services:
     networks: [ctg-network]
 
   ml-service:
-    build: { context: ./ml-service , dockerfile: Dockerfile }
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
     image: ctg-ml:latest
     container_name: ctg_ml_service
     restart: unless-stopped
@@ -118,8 +121,21 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
-      - ML_SERVICE_URL=http://temp-ml:8000  # внутреннее DNS-имя
+      - ML_SERVICE_URL=http://temp-ml:8000
     networks: [ctg-network]
+
+  web:
+      build:
+        context: .
+        dockerfile: web/Dockerfile
+      image: web-frontend:latest
+      container_name: ctg_web_service
+      restart: unless-stopped
+      ports:
+        - "3000:3000"
+      environment:
+        - NODE_ENV=production
+      networks: [ctg-network]
 
 networks:
   ctg-network:
