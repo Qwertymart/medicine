@@ -154,7 +154,7 @@ type EmulatorState struct {
 type SessionInfo struct {
 	FolderName       string    `json:"folder_name"`
 	SessionName      string    `json:"session_name"`
-	Status           string    `json:"status"` // "running", "completed", "error"
+	Status           string    `json:"status"`
 	RecordsTotal     int       `json:"records_total"`
 	RecordsProcessed int       `json:"records_processed"`
 	StartTime        time.Time `json:"start_time"`
@@ -415,7 +415,7 @@ func normalizeAndSavePair(bpmPath, uterusPath string) (string, string, error) {
 		return "", "", err
 	}
 
-	fmt.Printf("✓ Файлы нормализованы:\n -> %s\n -> %s\n", filepath.Base(fixedBPMPath), filepath.Base(fixedUterusPath))
+	fmt.Printf("Файлы нормализованы:\n -> %s\n -> %s\n", filepath.Base(fixedBPMPath), filepath.Base(fixedUterusPath))
 	return fixedBPMPath, fixedUterusPath, nil
 }
 
@@ -475,7 +475,7 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 	}
 	emulatorMutex.Unlock()
 
-	fmt.Printf("✅ Сеанс %s начат. Записей для обработки: %d\n", filepath.Base(bpmFile), numRecords)
+	fmt.Printf("Сеанс %s начат. Записей для обработки: %d\n", filepath.Base(bpmFile), numRecords)
 
 	for i := 0; i < numRecords; i++ {
 		select {
