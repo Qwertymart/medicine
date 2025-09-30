@@ -5,6 +5,7 @@ import {App} from '../components/App';
 import '@gravity-ui/uikit/styles/fonts.css';
 import '@gravity-ui/uikit/styles/styles.css';
 import '../styles/globals.scss';
+import '../styles/widgets.scss';
 
 export const metadata: Metadata = {
     title: 'CTG Control',

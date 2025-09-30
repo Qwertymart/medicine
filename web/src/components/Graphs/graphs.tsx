@@ -139,10 +139,10 @@ function generateDataPoint(dataType: string, baseValue: number, timeSec: number)
 }
 
 export function Graphs({dataType, title, color}: GraphsProps) {
-    const mockStreamData = useMockStream(dataType, false);
-    const isConnected = true;
-    const ctgData = mockStreamData;
-    // const {ctgData, isConnected} = useSession();
+    // const mockStreamData = useMockStream(dataType, false);
+    // const isConnected = true;
+    // const ctgData = mockStreamData;
+    const {ctgData, isConnected} = useSession();
 
     const filteredData = useMemo(() => {
         if (!ctgData || ctgData.length === 0) return [];
