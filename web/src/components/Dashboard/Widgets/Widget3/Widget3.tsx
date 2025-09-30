@@ -2,7 +2,7 @@
 
 import {Card, Text, Button} from '@gravity-ui/uikit';
 import {Wrapper} from '../Wrapper';
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useRef} from 'react';
 import block from 'bem-cn-lite';
 import {useSession} from '../../SessionContext';
 
@@ -14,6 +14,7 @@ export const Widget3 = () => {
     const [loading, setLoading] = useState<boolean>(false);
     const [healthStatus, setHealthStatus] = useState<string>('Проверка...');
     const {cardId, isConnected} = useSession();
+    const sessionStartRef = useRef<number | null>(null);
 
     useEffect(() => {
         const checkHealth = async () => {
@@ -41,12 +42,19 @@ export const Widget3 = () => {
     useEffect(() => {
         if (!isConnected || !cardId) return;
 
+        sessionStartRef.current = Date.now();
+
         const fetchPrediction = async () => {
             setLoading(true);
             try {
+                const sessionDuration = sessionStartRef.current
+                    ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
+                    : 0;
+                const t_sec = 0 + sessionDuration;
+
                 const requestData = {
                     card_id: cardId,
-                    t_sec: 960,
+                    t_sec: t_sec,
                 };
 
                 const response = await fetch('/api/ml/predict', {
@@ -82,9 +90,14 @@ export const Widget3 = () => {
 
         setLoading(true);
         try {
+            const sessionDuration = sessionStartRef.current
+                ? Math.floor((Date.now() - sessionStartRef.current) / 1000)
+                : 0;
+            const t_sec = 0 + sessionDuration;
+
             const requestData = {
                 card_id: cardId,
-                t_sec: 960,
+                t_sec: t_sec,
             };
 
             const response = await fetch('/api/ml/predict', {
@@ -112,7 +125,7 @@ export const Widget3 = () => {
         <Wrapper>
             {isConnected ? (
                 <>
-                    <Text variant="header-2" className={b('title')}>
+                    <Text variant="header-1" className={b('title')}>
                         Результат
                     </Text>
 
