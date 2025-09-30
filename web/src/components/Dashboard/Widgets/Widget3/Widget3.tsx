@@ -18,7 +18,7 @@ export const Widget3 = () => {
     useEffect(() => {
         const checkHealth = async () => {
             try {
-                const response = await fetch('/api/v1/ml/health');
+                const response = await fetch('/api/ml/health');
                 const data = await response.json();
                 if (data) {
                     setHealthStatus('Сервис доступен');
@@ -49,7 +49,7 @@ export const Widget3 = () => {
                     t_sec: 960,
                 };
 
-                const response = await fetch('/api/v1/ml/predict', {
+                const response = await fetch('/api/ml/predict', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ export const Widget3 = () => {
                 t_sec: 960,
             };
 
-            const response = await fetch('/api/v1/ml/predict', {
+            const response = await fetch('/api/ml/predict', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
