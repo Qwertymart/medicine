@@ -39,7 +39,7 @@ def summarize(resp: Dict[str, Any]) -> Dict[str, Any]:
 
     res = resp.get("result", {})
 
-    # тренд
+    # тренд на русском языке
     if "trend5_trend" in res:
         tr = res["trend5_trend"]
         if isinstance(tr, dict) and "proba" in tr:
@@ -47,8 +47,20 @@ def summarize(resp: Dict[str, Any]) -> Dict[str, Any]:
             probs   = list(tr["proba"].values())
             if classes and probs:
                 best_i  = int(max(range(len(probs)), key=lambda i: probs[i]))
-                out["trend_text"]  = f"Trend (5 min): {classes[best_i]} (Sure {probs[best_i]*100:.0f}%)"
-                out["trend_probs"] = {k: round(v*100.0, 1) for k, v in tr["proba"].items()}
+                
+                # Перевод классов тренда на русский
+                class_names = {
+                    "down": "снижение",
+                    "flat": "стабильное",
+                    "up": "повышение"
+                }
+                
+                # Уровень уверенности
+                confidence_level = "высокая" if probs[best_i] > 0.7 else "средняя" if probs[best_i] > 0.5 else "низкая"
+                
+                russian_class = class_names.get(classes[best_i], classes[best_i])
+                out["trend_text"] = f"Тенденция изменения показателей (5 мин): {russian_class}, уверенность {confidence_level} ({probs[best_i]*100:.0f}%)"
+                out["trend_probs"] = {class_names.get(k, k): round(v*100.0, 1) for k, v in tr["proba"].items()}
 
     # риски по горизонтам
     for h in ["h15","h30","h45","h60"]:
@@ -61,16 +73,54 @@ def summarize(resp: Dict[str, Any]) -> Dict[str, Any]:
                     "thr": res[h].get("thr"),
                 }
 
-    # сводная строка по 60 мин
-    if "h60" in out:
-        p60 = out["h60"]["risk_pct"]
+    # медицинское заключение на русском языке
+    if "h15" in out and "h30" in out and "h45" in out and "h60" in out:
+        h15_risk = out["h15"]["risk_pct"]
+        h30_risk = out["h30"]["risk_pct"] 
+        h45_risk = out["h45"]["risk_pct"]
+        h60_risk = out["h60"]["risk_pct"]
+        
+        # Формирование прогнозов по времени
+        forecasts = []
+        forecasts.append(f"Вероятность развития гипоксии плода в следующие 15 минут: {h15_risk:.1f}%")
+        forecasts.append(f"Вероятность развития гипоксии плода в следующие 30 минут: {h30_risk:.1f}%")
+        forecasts.append(f"Вероятность развития гипоксии плода в следующие 45 минут: {h45_risk:.1f}%")
+        forecasts.append(f"Вероятность развития гипоксии плода в следующие 60 минут: {h60_risk:.1f}%")
+        
+        # Определение общего уровня риска
+        max_risk = max(h15_risk, h30_risk, h45_risk, h60_risk)
+        
+        # Медицинские рекомендации
+        if max_risk >= 20:
+            clinical_decision = "ТРЕБУЕТСЯ СРОЧНОЕ ВМЕШАТЕЛЬСТВО! Высокий риск развития осложнений."
+            risk_category = "критический"
+        elif max_risk >= 10:
+            clinical_decision = "Рекомендуется усиленное наблюдение. Умеренный риск осложнений."
+            risk_category = "повышенный"
+        elif max_risk >= 5:
+            clinical_decision = "Показано продолжение мониторинга. Низкий риск осложнений."
+            risk_category = "низкий"
+        else:
+            clinical_decision = "Показатели в норме. Состояние плода стабильное."
+            risk_category = "минимальный"
+        
+        # Составляем итоговое заключение
+        prediction_text = "ПРЕДИКТИВНЫЙ АНАЛИЗ СОСТОЯНИЯ ПЛОДА\n\n"
+        prediction_text += "Краткосрочные прогнозы:\n"
+        prediction_text += "\n".join(f"• {forecast}" for forecast in forecasts)
+        prediction_text += f"\n\nОбщий уровень риска: {risk_category}\n"
+        prediction_text += f"Клиническое заключение: {clinical_decision}"
+        
         out["summary"] = {
-            "risk_60m": p60,
-            "ok_60m": round(100.0 - p60, 2),
-            "text": f"In the next 60 minutes the risk of encountering difficulties is {p60:.1f}%. The probability of everything being fine: {100.0 - p60:.1f}%."
+            "risk_60m": h60_risk,
+            "ok_60m": round(100.0 - h60_risk, 2),
+            "text": prediction_text,
+            "clinical_decision": clinical_decision,
+            "risk_category": risk_category,
+            "forecasts": forecasts
         }
+    
     return out
-
 
 @app.on_event("startup")
 def _on_startup():
@@ -89,7 +139,6 @@ def _on_startup():
         print("[startup] ERROR:", repr(e))
         SVC = None
 
-
 @app.get("/health")
 def health():
     ok = SVC is not None
@@ -99,7 +148,6 @@ def health():
         "models": list(SVC.hub.list_specs().keys()) if ok else [],
         "msg": "ready" if ok else "service not initialized"
     }
-
 
 @app.get("/meta")
 def meta():
@@ -116,7 +164,6 @@ def meta():
         }
     return {"ok": True, "out_dir": OUT_DIR, "meta": info}
 
-
 @app.post("/infer")
 def infer(
     payload: Dict[str, Any] = Body(..., description="One-tick feature row from backend"),
@@ -131,7 +178,6 @@ def infer(
         return JSONResponse(resp)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"bad request: {type(e).__name__}: {e}")
-
 
 # удобный запуск:  uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1
 if __name__ == "__main__":

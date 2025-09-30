@@ -1,4 +1,12 @@
 mosquitto/data/*.db
 mosquitto/data/
 mosquitto/log/
-medicine_emulator/data
+medicine_emulator/data# Временные файлы
+.DS_Store
+
+# Mosquitto данные
+mosquitto/data/
+mosquitto/log/
+
+# Данные эмулятора
+medicine_emulator/data/
