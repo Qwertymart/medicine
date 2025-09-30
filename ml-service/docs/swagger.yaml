@@ -1,0 +1,184 @@
+basePath: /api/v1
+definitions:
+  models.ErrorResponse:
+    properties:
+      details:
+        description: Дополнительные детали
+        example: field validation failed
+        type: string
+      error:
+        description: Сообщение об ошибке
+        example: validation error
+        type: string
+    type: object
+  models.FeaturesResponse:
+    properties:
+      available_windows:
+        description: Доступные временные окна
+        example:
+        - 240s
+        - 600s
+        - 900s
+        items:
+          type: string
+        type: array
+      card_id:
+        description: ID карты пациента
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      features:
+        additionalProperties:
+          format: float64
+          type: number
+        description: Словарь вычисленных фичей
+        type: object
+      fs_hz:
+        description: Частота дискретизации
+        example: 8
+        type: number
+      t_sec:
+        description: Время анализа в секундах
+        example: 960
+        type: integer
+    type: object
+  models.MLRequest:
+    properties:
+      available_windows:
+        items:
+          type: string
+        type: array
+      card_id:
+        type: string
+      features:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
+      fs_hz:
+        type: integer
+      t_sec:
+        type: integer
+    type: object
+  models.MLResponse:
+    properties:
+      card_id:
+        type: string
+      missing:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      notes:
+        items:
+          type: string
+        type: array
+      ok:
+        type: boolean
+      ran:
+        items:
+          type: string
+        type: array
+      result:
+        additionalProperties: true
+        type: object
+      t_sec:
+        type: integer
+      ui:
+        additionalProperties: true
+        type: object
+    type: object
+host: localhost:8052
+info:
+  contact:
+    email: support@swagger.io
+    name: Itelma Support
+    url: http://www.swagger.io/support
+  description: API для предиктивного анализа CTG данных
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: ML Service API
+  version: "1.0"
+paths:
+  /ml/features:
+    post:
+      consumes:
+      - application/json
+      description: Рассчитывает статистические фичи на основе CTG данных пациента
+      parameters:
+      - description: Запрос на вычисление фичей
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.MLRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Вычисленные фичи
+          schema:
+            $ref: '#/definitions/models.FeaturesResponse'
+        "400":
+          description: Неверный запрос
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Вычисление фичей CTG данных
+      tags:
+      - ml
+  /ml/health:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает статус работы ML сервиса
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Сервис работает
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Проверка состояния ML сервиса
+      tags:
+      - health
+  /ml/predict:
+    post:
+      consumes:
+      - application/json
+      description: Вычисляет фичи и выполняет ML предсказание состояния плода
+      parameters:
+      - description: Запрос на предсказание
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.MLRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Результат предсказания
+          schema:
+            $ref: '#/definitions/models.MLResponse'
+        "400":
+          description: Неверный запрос
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/models.ErrorResponse'
+      summary: Предиктивный анализ CTG данных
+      tags:
+      - ml
+schemes:
+- http
+- https
+swagger: "2.0"
