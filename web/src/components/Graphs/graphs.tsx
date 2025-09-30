@@ -8,6 +8,7 @@ import type {YagrWidgetData} from '@gravity-ui/chartkit/yagr';
 import type {IndicatorWidgetData, IndicatorWidgetDataItem} from '@gravity-ui/chartkit/indicator';
 import block from 'bem-cn-lite';
 import {useSession} from '@/components/Dashboard/SessionContext';
+import {ThemeProvider} from '@gravity-ui/uikit';
 
 const b = block('graph');
 
@@ -140,6 +141,9 @@ function generateDataPoint(dataType: string, baseValue: number, timeSec: number)
 
 export function Graphs({dataType, title, color}: GraphsProps) {
     const {ctgData, isConnected} = useSession();
+    // const mockStreamData = useMockStream(dataType, false);
+    // const isConnected = true;
+    // const ctgData = mockStreamData;
 
     const filteredData = useMemo(() => {
         if (!ctgData || ctgData.length === 0) return [];
@@ -280,60 +284,61 @@ export function Graphs({dataType, title, color}: GraphsProps) {
     }
 
     return (
-        <div
-            className={b('container')}
-            style={{
-                display: 'flex',
-                flexDirection: 'row',
-                height: '30vh',
-            }}
-        >
+        <ThemeProvider theme={'light'}>
             <div
-                className={b('chart')}
+                className={b('container')}
                 style={{
-                    flex: 1,
-                    border: '1px solid #e0e0e0',
-                    borderRight: 'none',
-                    borderRadius: '8px 0 0 8px',
-                    padding: 12,
-                    background: 'white',
-                    minHeight: '30vh',
-                    height: '30vh',
-                    minWidth: 0,
-                    overflow: 'hidden',
-                }}
-            >
-                <ChartKit type="yagr" data={graphData} />
-            </div>
-
-            <div
-                className={b('indicator_container')}
-                style={{
-                    width: 150,
                     display: 'flex',
-                    flexDirection: 'column',
+                    flexDirection: 'row',
                     height: '30vh',
                 }}
             >
                 <div
-                    className={b('indicator')}
+                    className={b('chart')}
                     style={{
+                        flex: 1,
                         border: '1px solid #e0e0e0',
-                        borderLeft: 'none',
-                        borderRadius: '0 8px 8px 0',
+                        borderRight: 'none',
+                        borderRadius: '8px 0 0 8px',
                         padding: 12,
                         background: 'white',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 17,
-                        fontWeight: 500,
+                        height: '30vh',
+                        minWidth: 0,
+                        overflow: 'hidden',
                     }}
                 >
-                    <ChartKit type="indicator" data={indicatorData} />
+                    <ChartKit type="yagr" data={graphData} />
+                </div>
+
+                <div
+                    className={b('indicator_container')}
+                    style={{
+                        width: 150,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        height: '32.2vh',
+                    }}
+                >
+                    <div
+                        className={b('indicator')}
+                        style={{
+                            border: '1px solid #e0e0e0',
+                            borderLeft: 'none',
+                            borderRadius: '0 8px 8px 0',
+                            padding: 12,
+                            background: 'white',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 17,
+                            fontWeight: 500,
+                        }}
+                    >
+                        <ChartKit type="indicator" data={indicatorData} />
+                    </div>
                 </div>
             </div>
-        </div>
+        </ThemeProvider>
     );
 }
