@@ -80,13 +80,20 @@ export const Widget3 = () => {
 
         fetchPrediction();
 
-        const predictionInterval = setInterval(fetchPrediction, 30000);
+        // const predictionInterval = setInterval(fetchPrediction, 30000);
+        let predictionInterval = setTimeout(function tick() {
+            fetchPrediction
+            predictionInterval = setTimeout(tick, 2000); // (*)
+        }, 2000);
 
         return () => clearInterval(predictionInterval);
     }, [isConnected, cardId]);
 
     const handleManualPredict = async () => {
+        console.log('click');
+        console.log(cardId);
         if (!isConnected || !cardId) return;
+        // const cardId='0';
 
         setLoading(true);
         try {
@@ -137,9 +144,9 @@ export const Widget3 = () => {
 
                             <div className={b('controls')}>
                                 <Button
-                                    view="action"
+                                    view="outlined-action"
                                     onClick={handleManualPredict}
-                                    loading={loading}
+                                    // loading={loading}
                                 >
                                     Обновить предсказание
                                 </Button>

@@ -5,7 +5,7 @@ const ML_API_URL = process.env.NEXT_PUBLIC_API_ML_URL || 'http://localhost:8052'
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-
+        console.log(body);
         const response = await fetch(`${ML_API_URL}/api/v1/ml/predict`, {
             method: 'POST',
             headers: {
