@@ -57,8 +57,7 @@ service-root
 | mqtt-broker       | MQTT     | 1883  | n/a                        |
 | mqtt-broker       | WS       | 9001  | n/a                        |
 | postgres          | TCP      | 5432  | n/a                        |
-| prometheus        | HTTP     | 9090  | `/graph`                   |
-| grafana           | HTTP     | 3001  | `/`                        |
+
 
 ## Инструкция по развертыванию
 
@@ -74,7 +73,7 @@ service-root
 ### Шаг 1. Клонирование репозитория
 
 ```bash
-git clone https://github.com/Qwertymart/medicine.git && cd medicine
+git clone https://github.com/Qwertymart/medicine.git
 ```
 
 ### Шаг 2. Настройка переменных окружения
