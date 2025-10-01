@@ -54,7 +54,7 @@ export const Widget3 = () => {
 
                 const requestData = {
                     card_id: cardId,
-                    t_sec: t_sec,
+                    target_time: t_sec,
                 };
 
                 const response = await fetch('/api/ml/predict', {
@@ -138,8 +138,8 @@ export const Widget3 = () => {
                             <div className={b('status')}>
                                 <Text variant="caption-2">Статус: {healthStatus}</Text>
                             </div>
-                            
-                             <div className={b('controls')}>
+
+                            <div className={b('controls')}>
                                 <Button
                                     view="outlined-action"
                                     onClick={handleManualPredict}
@@ -148,7 +148,6 @@ export const Widget3 = () => {
                                     Обновить предсказание
                                 </Button>
                             </div>
-                            
 
                             {(trendText || summaryText) && (
                                 <div className={b('results')}>
