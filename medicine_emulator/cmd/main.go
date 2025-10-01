@@ -167,7 +167,7 @@ var (
 )
 
 var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
-	fmt.Println("✓ Подключение к MQTT брокеру установлено")
+	fmt.Println(" Подключение к MQTT брокеру установлено")
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
@@ -176,7 +176,7 @@ var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err
 
 func initMQTTClient() error {
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://mosquitto:1883")
+	opts.AddBroker("tcp://host.docker.internal:1883")
 	opts.SetClientID(fmt.Sprintf("medical-device-%d", time.Now().Unix()))
 	opts.SetAutoReconnect(true)
 	opts.SetCleanSession(true)
@@ -205,7 +205,6 @@ func publishMQTT(topic string, data MedicalData) error {
 	return token.Error()
 }
 
-// --- Функции для работы с файлами ---
 func readCSVFile(filename string) ([]CSVRecord, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -467,7 +466,6 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 		numRecords = len(uterusRecords)
 	}
 
-	// Обновляем статус сеанса
 	emulatorMutex.Lock()
 	if sessionIndex < len(emulatorState.Sessions) {
 		emulatorState.Sessions[sessionIndex].Status = "running"
@@ -530,13 +528,12 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 			if err := publishMQTT(topic, data); err != nil {
 				log.Printf("Ошибка отправки UC: %v", err)
 			} else {
-				fmt.Printf("📡 UC: %.1f mmHg (t=%.1fs) -> %s\n", record.Value, record.TimeSec, topic)
+				fmt.Printf("UC: %.1f mmHg (t=%.1fs) -> %s\n", record.Value, record.TimeSec, topic)
 			}
 		}(uterusRecords[i])
 
 		wgPublish.Wait()
 
-		// Обновляем прогресс
 		emulatorMutex.Lock()
 		if sessionIndex < len(emulatorState.Sessions) {
 			emulatorState.Sessions[sessionIndex].RecordsProcessed = i + 1
@@ -557,7 +554,6 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 		}
 	}
 
-	// Отмечаем сеанс как завершенный
 	emulatorMutex.Lock()
 	if sessionIndex < len(emulatorState.Sessions) {
 		emulatorState.Sessions[sessionIndex].Status = "completed"
@@ -566,8 +562,6 @@ func emulateSession(bpmFile, uterusFile, deviceID string, speedMultiplier float6
 
 	return nil
 }
-
-// === HTTP API для управления эмулятором ===
 
 func enableCORS(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -608,7 +602,6 @@ func startEmulatorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Инициализируем новую сессию
 	selectedKey, dataType, folders := selectRandomKey()
 	deviceID := fmt.Sprintf("CTG-MONITOR-%04d", 1+time.Now().Unix()%9998)
 
@@ -625,7 +618,6 @@ func startEmulatorHandler(w http.ResponseWriter, r *http.Request) {
 	emulatorState.ctx = ctx
 	emulatorState.cancel = cancel
 
-	// Запускаем эмулятор в отдельной горутине
 	go runEmulator()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -674,7 +666,7 @@ func runEmulator() {
 	for {
 		select {
 		case <-emulatorState.ctx.Done():
-			fmt.Println("\n🛑 Эмуляция остановлена пользователем")
+			fmt.Println("\nЭмуляция остановлена пользователем")
 			return
 		default:
 		}
@@ -687,7 +679,7 @@ func runEmulator() {
 		deviceID := emulatorState.DeviceID
 		emulatorMutex.Unlock()
 
-		fmt.Printf("\n🔄 Начинаем цикл обработки #%d...\n", cycle)
+		fmt.Printf("\nНачинаем цикл обработки #%d...\n", cycle)
 
 		for _, folder := range folders {
 			select {
@@ -743,7 +735,6 @@ func runEmulator() {
 				continue
 			}
 
-			// Добавляем сеансы в состояние
 			emulatorMutex.Lock()
 			sessionStartIndex := len(emulatorState.Sessions)
 			for _, pair := range normalizedFiles {
@@ -755,7 +746,7 @@ func runEmulator() {
 			}
 			emulatorMutex.Unlock()
 
-			fmt.Printf("🔄 Нормализация завершена для папки %s. Готово к эмуляции %d сеансов.\n", folder, len(normalizedFiles))
+			fmt.Printf("Нормализация завершена для папки %s. Готово к эмуляции %d сеансов.\n", folder, len(normalizedFiles))
 
 			for i, pair := range normalizedFiles {
 				select {
@@ -765,18 +756,18 @@ func runEmulator() {
 				}
 
 				sessionIndex := sessionStartIndex + i
-				fmt.Printf("\n🚀 НАЧАЛО СЕАНСА КТГ (%s)\n", filepath.Base(pair[0]))
+				fmt.Printf("\n НАЧАЛО СЕАНСА КТГ (%s)\n", filepath.Base(pair[0]))
 
 				if err := emulateSession(pair[0], pair[1], deviceID, 1.0, sessionIndex); err != nil {
-					fmt.Printf("❌ ОШИБКА в сеансе КТГ %s: %v\n", filepath.Base(pair[0]), err)
+					fmt.Printf(" ОШИБКА в сеансе КТГ %s: %v\n", filepath.Base(pair[0]), err)
 					if err.Error() == "эмуляция остановлена" {
 						return
 					}
 				} else {
-					fmt.Printf("✅ СЕАНС КТГ %s ЗАВЕРШЕН\n", filepath.Base(pair[0]))
+					fmt.Printf(" СЕАНС КТГ %s ЗАВЕРШЕН\n", filepath.Base(pair[0]))
 				}
 
-				fmt.Println("⏸️ Пауза 5 секунд перед следующим сеансом...")
+				fmt.Println("Пауза 5 секунд перед следующим сеансом...")
 				select {
 				case <-time.After(5 * time.Second):
 				case <-emulatorState.ctx.Done():
@@ -785,7 +776,7 @@ func runEmulator() {
 			}
 
 			fmt.Printf("==================== ПАПКА %s ЗАВЕРШЕНА ====================\n", folder)
-			fmt.Println("⏸️ Пауза 10 секунд перед следующей папкой...")
+			fmt.Println("Пауза 10 секунд перед следующей папкой...")
 			select {
 			case <-time.After(10 * time.Second):
 			case <-emulatorState.ctx.Done():
@@ -793,7 +784,7 @@ func runEmulator() {
 			}
 		}
 
-		fmt.Println("\n🏁 Все папки завершены. Начинаем цикл заново через 15 секунд.")
+		fmt.Println("\nВсе папки завершены. Начинаем цикл заново через 15 секунд.")
 		select {
 		case <-time.After(15 * time.Second):
 		case <-emulatorState.ctx.Done():
@@ -803,400 +794,13 @@ func runEmulator() {
 }
 
 func webInterfaceHandler(w http.ResponseWriter, r *http.Request) {
-	html := `
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>КТГ Эмулятор - Панель управления</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 2.5em;
-            font-weight: 300;
-        }
-        .content {
-            padding: 30px;
-        }
-        .control-panel {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-        .card {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 25px;
-            border: 1px solid #e9ecef;
-        }
-        .card h3 {
-            color: #333;
-            margin-top: 0;
-            margin-bottom: 20px;
-            font-size: 1.3em;
-        }
-        .btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            margin: 5px;
-            text-transform: uppercase;
-        }
-        .btn-start {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            color: white;
-        }
-        .btn-start:hover:not(:disabled) {
-            background: linear-gradient(135deg, #45a049, #4CAF50);
-            transform: translateY(-2px);
-        }
-        .btn-stop {
-            background: linear-gradient(135deg, #f44336, #d32f2f);
-            color: white;
-        }
-        .btn-stop:hover:not(:disabled) {
-            background: linear-gradient(135deg, #d32f2f, #f44336);
-            transform: translateY(-2px);
-        }
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-        .status {
-            display: flex;
-            align-items: center;
-            margin: 15px 0;
-            padding: 15px;
-            border-radius: 8px;
-            font-weight: 600;
-        }
-        .status.running {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .status.stopped {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 10px;
-            animation: pulse 2s infinite;
-        }
-        .status.running .status-indicator {
-            background: #28a745;
-        }
-        .status.stopped .status-indicator {
-            background: #dc3545;
-            animation: none;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        .info-item {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
-        }
-        .info-label {
-            font-weight: 600;
-            color: #6c757d;
-            font-size: 0.9em;
-            margin-bottom: 5px;
-        }
-        .info-value {
-            color: #333;
-            font-size: 1.1em;
-        }
-        .sessions-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .sessions-table th,
-        .sessions-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #e9ecef;
-        }
-        .sessions-table th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-        }
-        .session-status {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.85em;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        .session-status.pending { background: #fff3cd; color: #856404; }
-        .session-status.running { background: #d1ecf1; color: #0c5460; }
-        .session-status.completed { background: #d4edda; color: #155724; }
-        .session-status.error { background: #f8d7da; color: #721c24; }
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: #e9ecef;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #45a049);
-            transition: width 0.3s ease;
-        }
-        .logs {
-            background: #1e1e1e;
-            color: #00ff00;
-            padding: 20px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            max-height: 300px;
-            overflow-y: auto;
-            margin-top: 20px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🏥 КТГ Эмулятор</h1>
-            <p>Панель управления медицинскими данными</p>
-        </div>
-        
-        <div class="content">
-            <div class="control-panel">
-                <div class="card">
-                    <h3>🎮 Управление эмулятором</h3>
-                    <div id="status" class="status stopped">
-                        <div class="status-indicator"></div>
-                        <span>Эмулятор остановлен</span>
-                    </div>
-                    <button id="startBtn" class="btn btn-start">▶️ Запустить эмуляцию</button>
-                    <button id="stopBtn" class="btn btn-stop" disabled>⏹️ Остановить эмуляцию</button>
-                </div>
-                
-                <div class="card">
-                    <h3>📊 Текущая статистика</h3>
-                    <div class="info-grid">
-                        <div class="info-item">
-                            <div class="info-label">Устройство</div>
-                            <div class="info-value" id="deviceId">-</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Тип данных</div>
-                            <div class="info-value" id="dataType">-</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Цикл</div>
-                            <div class="info-value" id="currentCycle">-</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Время работы</div>
-                            <div class="info-value" id="uptime">-</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>📋 Активные сеансы</h3>
-                <table class="sessions-table">
-                    <thead>
-                        <tr>
-                            <th>Папка</th>
-                            <th>Сеанс</th>
-                            <th>Статус</th>
-                            <th>Прогресс</th>
-                            <th>Время</th>
-                        </tr>
-                    </thead>
-                    <tbody id="sessionsTable">
-                        <tr>
-                            <td colspan="5" style="text-align: center; color: #6c757d; padding: 40px;">
-                                Нет активных сеансов
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const status = document.getElementById('status');
-        
-        function updateStatus(data) {
-            const isRunning = data.is_running;
-            
-            if (isRunning) {
-                status.className = 'status running';
-                status.innerHTML = '<div class="status-indicator"></div><span>Эмулятор работает</span>';
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
-            } else {
-                status.className = 'status stopped';
-                status.innerHTML = '<div class="status-indicator"></div><span>Эмулятор остановлен</span>';
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-            }
-            
-            document.getElementById('deviceId').textContent = data.device_id || '-';
-            document.getElementById('dataType').textContent = data.data_type || '-';
-            document.getElementById('currentCycle').textContent = data.current_cycle || '-';
-            
-            // Обновляем время работы
-            if (data.start_time && isRunning) {
-                const startTime = new Date(data.start_time);
-                const now = new Date();
-                const diff = now - startTime;
-                const hours = Math.floor(diff / 3600000);
-                const minutes = Math.floor((diff % 3600000) / 60000);
-                const seconds = Math.floor((diff % 60000) / 1000);
-                document.getElementById('uptime').textContent = 
-                    hours.toString().padStart(2, '0') + ':' + 
-                    minutes.toString().padStart(2, '0') + ':' + 
-                    seconds.toString().padStart(2, '0');
-            } else {
-                document.getElementById('uptime').textContent = '-';
-            }
-            
-            updateSessionsTable(data.sessions || []);
-        }
-        
-        function updateSessionsTable(sessions) {
-            const tbody = document.getElementById('sessionsTable');
-            
-            if (sessions.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #6c757d; padding: 40px;">Нет активных сеансов</td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = sessions.map(session => {
-                const progress = session.records_total > 0 ? 
-                    Math.round((session.records_processed / session.records_total) * 100) : 0;
-                
-                const startTime = session.start_time ? 
-                    new Date(session.start_time).toLocaleTimeString() : '-';
-                
-                return '<tr>' +
-                    '<td>' + session.folder_name + '</td>' +
-                    '<td>' + session.session_name + '</td>' +
-                    '<td><span class="session-status ' + session.status + '">' + session.status + '</span></td>' +
-                    '<td>' +
-                        '<div class="progress-bar">' +
-                            '<div class="progress-fill" style="width: ' + progress + '%"></div>' +
-                        '</div>' +
-                        '<small>' + session.records_processed + '/' + session.records_total + ' (' + progress + '%)</small>' +
-                    '</td>' +
-                    '<td>' + startTime + '</td>' +
-                '</tr>';
-            }).join('');
-        }
-        
-        startBtn.addEventListener('click', async () => {
-            try {
-                const response = await fetch('/api/start', { method: 'POST' });
-                if (!response.ok) {
-                    const error = await response.text();
-                    alert('Ошибка запуска: ' + error);
-                }
-            } catch (error) {
-                alert('Ошибка подключения: ' + error.message);
-            }
-        });
-        
-        stopBtn.addEventListener('click', async () => {
-            try {
-                const response = await fetch('/api/stop', { method: 'POST' });
-                if (!response.ok) {
-                    const error = await response.text();
-                    alert('Ошибка остановки: ' + error);
-                }
-            } catch (error) {
-                alert('Ошибка подключения: ' + error.message);
-            }
-        });
-        
-        // Периодическое обновление статуса
-        async function fetchStatus() {
-            try {
-                const response = await fetch('/api/status');
-                if (response.ok) {
-                    const data = await response.json();
-                    updateStatus(data);
-                }
-            } catch (error) {
-                console.error('Ошибка получения статуса:', error);
-            }
-        }
-        
-        // Первоначальная загрузка и периодическое обновление
-        fetchStatus();
-        setInterval(fetchStatus, 2000);
-    </script>
-</body>
-</html>
-`
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte(html))
+	http.ServeFile(w, r, "./index.html")
 }
 
 func main() {
 	log.SetFlags(log.LstdFlags)
-	fmt.Println("=== ЭМУЛЯТОР МЕДИЦИНСКОГО ОБОРУДОВАНИЯ v7.0 (с Web UI) ===")
+	fmt.Println("=== ЭМУЛЯТОР МЕДИЦИНСКОГО ОБОРУДОВАНИЯ v8.2 (Docker ready) ===")
 
-	// Инициализируем состояние эмулятора
 	emulatorState = &EmulatorState{
 		IsRunning: false,
 		Sessions:  []SessionInfo{},
@@ -1207,14 +811,13 @@ func main() {
 	}
 	defer mqttClient.Disconnect(250)
 
-	// Настраиваем HTTP сервер
 	http.HandleFunc("/", webInterfaceHandler)
 	http.HandleFunc("/api/status", getStatusHandler)
 	http.HandleFunc("/api/start", startEmulatorHandler)
 	http.HandleFunc("/api/stop", stopEmulatorHandler)
 
-	fmt.Println("🌐 Web интерфейс доступен на: http://localhost:8081")
-	fmt.Println("📊 API endpoints:")
+	fmt.Println("Web интерфейс доступен на: http://localhost:8081")
+	fmt.Println("API endpoints:")
 	fmt.Println("  GET  /api/status  - получить статус эмулятора")
 	fmt.Println("  POST /api/start   - запустить эмуляцию")
 	fmt.Println("  POST /api/stop    - остановить эмуляцию")
