@@ -67,9 +67,9 @@ export const Widget3 = () => {
 
                 const data = await response.json();
 
-                if (data.result) {
-                    setTrendText(data.result.trend_text || '');
-                    setSummaryText(data.result.summary?.text || '');
+                if (data.ui) {
+                    setTrendText(data.ui.trend_text || '');
+                    setSummaryText(data.ui.summary?.text || '');
                 }
             } catch (error) {
                 console.error('Prediction error:', error);
@@ -78,15 +78,11 @@ export const Widget3 = () => {
             }
         };
 
-        // fetchPrediction();
+        fetchPrediction();
 
         const time = 4 * 60 * 1000;
 
-        // const predictionInterval = setInterval(fetchPrediction, 30000);
-        let predictionInterval = setTimeout(function tick() {
-            fetchPrediction;
-            predictionInterval = setTimeout(tick, time); // (*)
-        }, time);
+        const predictionInterval = setInterval(fetchPrediction, time);
 
         return () => clearInterval(predictionInterval);
     }, [isConnected, cardId]);
@@ -95,7 +91,6 @@ export const Widget3 = () => {
         console.log('click');
         console.log(cardId);
         if (!isConnected || !cardId) return;
-        // const cardId='0';
 
         setLoading(true);
         try {
@@ -119,9 +114,9 @@ export const Widget3 = () => {
 
             const data = await response.json();
 
-            if (data.result) {
-                setTrendText(data.result.trend_text || '');
-                setSummaryText(data.result.summary?.text || '');
+            if (data.ui) {
+                setTrendText(data.ui.trend_text || '');
+                setSummaryText(data.ui.summary?.text || '');
             }
         } catch (error) {
             console.error('Prediction error:', error);
