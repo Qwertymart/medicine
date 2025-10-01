@@ -310,6 +310,7 @@ func findPairedFilesInFolder(bpmDir, uterusDir string) ([][2]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("не удалось прочитать директорию %s: %v", dir, err)
 		}
+		
 
 		for _, f := range files {
 			if !f.IsDir() && !strings.HasSuffix(f.Name(), "_fixed.csv") {
