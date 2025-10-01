@@ -26,7 +26,12 @@ services:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - ./mosquitto/data:/mosquitto/data
       - ./mosquitto/log:/mosquitto/log
-    networks: [ctg-network]
+    networks: [ ctg-network ]
+    healthcheck:
+      test: [ "CMD-SHELL", "timeout 5 mosquitto_pub -h localhost -t test -m 'check' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   ctg-emulator:
     build:
@@ -39,7 +44,9 @@ services:
       - "8081:8081"
     volumes:
       - ./medicine_emulator/data:/app/data
-    depends_on: [mosquitto]
+    depends_on:
+      mosquitto:
+        condition: service_healthy
     environment:
       - MQTT_BROKER=tcp://mosquitto:1883
       - MQTT_HOST=mosquitto
@@ -47,8 +54,8 @@ services:
       - MQTT_CLIENT_ID=ctg_emulator
       - MQTT_USERNAME=ctg_mqtt_user
       - MQTT_PASSWORD=ctg_mqtt_password
-    networks: [ctg-network]
-
+    networks: [ ctg-network ]
+  
   ctg-monitor:
     build:
       context: ./CTG_monitor

@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>КТГ Эмулятор - Панель управления</title>
+    <style>
+        /* Медицинская цветовая схема */
+        :root {
+            /* Основные цвета - медицинская гамма */
+            --medical-dark: #1a2332;
+            --medical-darker: #0f1419;
+            --medical-primary: #2c3e50;
+            --medical-secondary: #34495e;
+            --medical-accent: #3498db;
+            --medical-light: #ecf0f1;
+            --medical-white: #ffffff;
+
+            /* Цвета для мониторинга */
+            --heart-rate-color: #8e44ad;
+            --contractions-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+
+            /* Текстовые цвета */
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --text-light: #bdc3c7;
+            --text-white: #ffffff;
+
+            /* Границы и линии */
+            --border-color: #bdc3c7;
+            --border-light: #ecf0f1;
+
+            /* Градиенты */
+            --gradient-primary: linear-gradient(135deg, var(--medical-primary) 0%, var(--medical-secondary) 100%);
+            --gradient-accent: linear-gradient(135deg, var(--medical-accent) 0%, #2980b9 100%);
+            --gradient-success: linear-gradient(135deg, var(--success-color) 0%, #229954 100%);
+            --gradient-danger: linear-gradient(135deg, var(--danger-color) 0%, #c0392b 100%);
+
+            /* Радиусы */
+            --radius-small: 4px;
+            --radius-medium: 8px;
+            --radius-large: 12px;
+            --radius-xlarge: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--medical-darker);
+            background-image: 
+                linear-gradient(rgba(26, 35, 50, 0.85), rgba(15, 20, 25, 0.85)),
+                url('picture.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: var(--text-white);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(44, 62, 80, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-large);
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 300;
+            color: var(--text-white);
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.8;
+            font-size: 1.1rem;
+            color: var(--text-light);
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .control-panel {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: rgba(44, 62, 80, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-large);
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h3 {
+            color: var(--text-white);
+            margin: 0 0 20px 0;
+            font-size: 1.3rem;
+            font-weight: 500;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius-medium);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin: 5px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 160px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-start {
+            background: var(--gradient-success);
+            color: var(--text-white);
+            border: 1px solid rgba(39, 174, 96, 0.3);
+        }
+
+        .btn-start:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+        }
+
+        .btn-stop {
+            background: var(--gradient-danger);
+            color: var(--text-white);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: var(--radius-medium);
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status.running {
+            background: rgba(39, 174, 96, 0.2);
+            color: #2ecc71;
+            border-color: rgba(39, 174, 96, 0.3);
+        }
+
+        .status.stopped {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border-color: rgba(231, 76, 60, 0.3);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 12px;
+            position: relative;
+        }
+
+        .status.running .status-indicator {
+            background: #2ecc71;
+            animation: pulse 2s infinite;
+        }
+
+        .status.stopped .status-indicator {
+            background: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0% { 
+                box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(46, 204, 113, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(46, 204, 113, 0);
+            }
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .info-item {
+            background: rgba(52, 73, 94, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: var(--radius-medium);
+            text-align: center;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            color: var(--text-white);
+            font-size: 1.2rem;
+            font-weight: 600;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .sessions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(44, 62, 80, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius-large);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sessions-table th,
+        .sessions-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sessions-table th {
+            background: rgba(52, 73, 94, 0.8);
+            font-weight: 600;
+            color: var(--text-white);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+        }
+
+        .sessions-table td {
+            color: var(--text-light);
+        }
+
+        .sessions-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .sessions-table tbody tr:hover {
+            background: rgba(52, 73, 94, 0.5);
+        }
+
+        .session-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+        }
+
+        .session-status.pending {
+            background: rgba(241, 196, 15, 0.2);
+            color: #f1c40f;
+            border: 1px solid rgba(241, 196, 15, 0.3);
+        }
+
+        .session-status.running {
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+
+        .session-status.completed {
+            background: rgba(39, 174, 96, 0.2);
+            color: #27ae60;
+            border: 1px solid rgba(39, 174, 96, 0.3);
+        }
+
+        .session-status.error {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(127, 140, 141, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--gradient-accent);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+
+        .progress-text {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        @media (max-width: 576px) {
+            .container {
+                padding: 15px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .sessions-table {
+                font-size: 0.9rem;
+            }
+
+            .sessions-table th,
+            .sessions-table td {
+                padding: 10px 12px;
+            }
+
+            .btn {
+                min-width: auto;
+                width: 100%;
+            }
+        }
+
+        /* Кастомный скроллбар */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(44, 62, 80, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(52, 152, 219, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(52, 152, 219, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>КТГ Эмулятор</h1>
+            <p>Панель управления медицинскими данными</p>
+        </div>
+
+        <div class="content">
+            <div class="control-panel">
+                <div class="card">
+                    <h3>Управление эмулятором</h3>
+                    <div id="status" class="status stopped">
+                        <div class="status-indicator"></div>
+                        <span>Эмулятор остановлен</span>
+                    </div>
+                    <button id="startBtn" class="btn btn-start">Запустить эмуляцию</button>
+                    <button id="stopBtn" class="btn btn-stop" disabled>Остановить эмуляцию</button>
+                </div>
+
+                <div class="card">
+                    <h3>Текущая статистика</h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Устройство</div>
+                            <div class="info-value" id="deviceId">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Тип данных</div>
+                            <div class="info-value" id="dataType">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Цикл</div>
+                            <div class="info-value" id="currentCycle">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Время работы</div>
+                            <div class="info-value" id="uptime">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Активные сеансы</h3>
+                <table class="sessions-table">
+                    <thead>
+                        <tr>
+                            <th>Папка</th>
+                            <th>Сеанс</th>
+                            <th>Статус</th>
+                            <th>Прогресс</th>
+                            <th>Время</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsTable">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-light); padding: 40px;">
+                                Нет активных сеансов
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const status = document.getElementById('status');
+
+        function updateStatus(data) {
+            const isRunning = data.is_running;
+
+            if (isRunning) {
+                status.className = 'status running';
+                status.innerHTML = '<div class="status-indicator"></div><span>Эмулятор работает</span>';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                status.className = 'status stopped';
+                status.innerHTML = '<div class="status-indicator"></div><span>Эмулятор остановлен</span>';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+
+            document.getElementById('deviceId').textContent = data.device_id || '-';
+            document.getElementById('dataType').textContent = data.data_type || '-';
+            document.getElementById('currentCycle').textContent = data.current_cycle || '-';
+
+            // Обновляем время работы
+            if (data.start_time && isRunning) {
+                const startTime = new Date(data.start_time);
+                const now = new Date();
+                const diff = now - startTime;
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+                document.getElementById('uptime').textContent = 
+                    hours.toString().padStart(2, '0') + ':' + 
+                    minutes.toString().padStart(2, '0') + ':' + 
+                    seconds.toString().padStart(2, '0');
+            } else {
+                document.getElementById('uptime').textContent = '-';
+            }
+
+            updateSessionsTable(data.sessions || []);
+        }
+
+        function updateSessionsTable(sessions) {
+            const tbody = document.getElementById('sessionsTable');
+
+            if (sessions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-light); padding: 40px;">Нет активных сеансов</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = sessions.map(session => {
+                const progress = session.records_total > 0 ? 
+                    Math.round((session.records_processed / session.records_total) * 100) : 0;
+
+                const startTime = session.start_time ? 
+                    new Date(session.start_time).toLocaleTimeString() : '-';
+
+                return `<tr>
+                    <td>${session.folder_name}</td>
+                    <td>${session.session_name}</td>
+                    <td><span class="session-status ${session.status}">${session.status}</span></td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="progress-text">${session.records_processed}/${session.records_total} (${progress}%)</div>
+                    </td>
+                    <td>${startTime}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/start', { method: 'POST' });
+                if (!response.ok) {
+                    const error = await response.text();
+                    alert('Ошибка запуска: ' + error);
+                }
+            } catch (error) {
+                alert('Ошибка подключения: ' + error.message);
+            }
+        });
+
+        stopBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/stop', { method: 'POST' });
+                if (!response.ok) {
+                    const error = await response.text();
+                    alert('Ошибка остановки: ' + error);
+                }
+            } catch (error) {
+                alert('Ошибка подключения: ' + error.message);
+            }
+        });
+
+        // Периодическое обновление статуса
+        async function fetchStatus() {
+            try {
+                const response = await fetch('/api/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateStatus(data);
+                }
+            } catch (error) {
+                console.error('Ошибка получения статуса:', error);
+            }
+        }
+
+        // Первоначальная загрузка и периодическое обновление
+        fetchStatus();
+        setInterval(fetchStatus, 2000);
+    </script>
+</body>
+</html>

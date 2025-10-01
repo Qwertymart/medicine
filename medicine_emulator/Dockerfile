@@ -22,6 +22,9 @@ WORKDIR /app
 # Копируем скомпилированное приложение
 COPY --from=builder /app/ctg-emulator .
 
+# Копируем index.html из cmd/ в корень рабочей директории
+COPY --from=builder /app/cmd/index.html .
+
 # Копируем данные в правильную структуру для работы приложения
 COPY --from=builder /app/data ./data
 
