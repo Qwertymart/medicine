@@ -78,13 +78,15 @@ export const Widget3 = () => {
             }
         };
 
-        fetchPrediction();
+        // fetchPrediction();
+
+        const time = 4 * 60 * 1000;
 
         // const predictionInterval = setInterval(fetchPrediction, 30000);
         let predictionInterval = setTimeout(function tick() {
-            fetchPrediction
-            predictionInterval = setTimeout(tick, 2000); // (*)
-        }, 2000);
+            fetchPrediction;
+            predictionInterval = setTimeout(tick, time); // (*)
+        }, time);
 
         return () => clearInterval(predictionInterval);
     }, [isConnected, cardId]);
@@ -141,7 +143,7 @@ export const Widget3 = () => {
                             <div className={b('status')}>
                                 <Text variant="caption-2">Статус: {healthStatus}</Text>
                             </div>
-
+                            {/*
                             <div className={b('controls')}>
                                 <Button
                                     view="outlined-action"
@@ -150,7 +152,8 @@ export const Widget3 = () => {
                                 >
                                     Обновить предсказание
                                 </Button>
-                            </div>
+                            </div> 
+                            */}
 
                             {(trendText || summaryText) && (
                                 <div className={b('results')}>
