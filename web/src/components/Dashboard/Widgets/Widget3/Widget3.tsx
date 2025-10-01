@@ -144,7 +144,7 @@ export const Widget3 = () => {
                                 <Text variant="caption-2">Статус: {healthStatus}</Text>
                             </div>
                             
-                            {/* <div className={b('controls')}>
+                             <div className={b('controls')}>
                                 <Button
                                     view="outlined-action"
                                     onClick={handleManualPredict}
@@ -152,7 +152,7 @@ export const Widget3 = () => {
                                 >
                                     Обновить предсказание
                                 </Button>
-                            </div>  */}
+                            </div>
                             
 
                             {(trendText || summaryText) && (

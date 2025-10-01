@@ -132,17 +132,22 @@ services:
     networks: [ctg-network]
 
   web:
-      build:
-        context: .
-        dockerfile: web/Dockerfile
-      image: web-frontend:latest
-      container_name: ctg_web_service
-      restart: unless-stopped
-      ports:
-        - "3000:3000"
-      environment:
-        - NODE_ENV=production
-      networks: [ctg-network]
+    build:
+      context: .
+      dockerfile: web/Dockerfile # Используем dev файл
+    image: web-frontend-dev:latest
+    container_name: ctg_web_service
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./web:/app          # Монтируем весь код
+      - /app/node_modules   # Защищаем node_modules
+      - /app/.next          # Защищаем .next кэш
+    networks: [ ctg-network ]
 
 networks:
   ctg-network:
